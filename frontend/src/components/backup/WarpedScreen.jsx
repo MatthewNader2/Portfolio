@@ -1,9 +1,9 @@
-import React, { useMemo, useEffect, Suspense } from "react";
-import { Html } from "@react-three/drei";
+// frontend/src/components/WarpedScreen.jsx
+
+import React, { useMemo, useEffect } from "react";
 import * as THREE from "three";
 
-const TerminalComponent = React.lazy(() => import("./TerminalComponent"));
-
+// --- Data remains the same ---
 const anchorsData = [
   [-0.1949, 0.4158, -0.0016],
   [0.1953, 0.4148, -0.0039],
@@ -20,12 +20,12 @@ const handlesData = [
   [-0.2011, 0.1914, 0.0007],
   [-0.1984, 0.3542, -0.0016],
 ];
-
 const anchors = anchorsData.map((p) => new THREE.Vector3(...p));
 const handles = handlesData.map((p) => new THREE.Vector3(...p));
 
-export default function WarpedScreen({ zOffset = 0 }) {
+export default function WarpedScreen({ onGeometryReady }) {
   const warpedGeometry = useMemo(() => {
+    // ... (geometry calculation is correct and remains the same)
     const topCurve = new THREE.CubicBezierCurve3(
       anchors[0],
       handles[0],
@@ -40,7 +40,6 @@ export default function WarpedScreen({ zOffset = 0 }) {
     );
     const divisions = 30;
     const vertices = [];
-    const uvs = [];
     for (let i = 0; i <= divisions; i++) {
       const t = i / divisions;
       const p1 = topCurve.getPoint(t);
@@ -48,9 +47,7 @@ export default function WarpedScreen({ zOffset = 0 }) {
       for (let j = 0; j <= divisions; j++) {
         const v = j / divisions;
         const p = p1.clone().lerp(p2, v);
-        p.z += zOffset;
         vertices.push(p.x, p.y, p.z);
-        uvs.push(t, 1 - v);
       }
     }
     const indices = [];
@@ -69,46 +66,21 @@ export default function WarpedScreen({ zOffset = 0 }) {
       "position",
       new THREE.Float32BufferAttribute(vertices, 3),
     );
-    geom.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geom.setIndex(indices);
-    geom.computeVertexNormals();
     return geom;
-  }, [zOffset]);
+  }, []);
 
   useEffect(() => {
+    if (warpedGeometry) {
+      onGeometryReady(warpedGeometry);
+    }
     return () => warpedGeometry.dispose();
-  }, [warpedGeometry]);
+  }, [warpedGeometry, onGeometryReady]);
 
-  // --- PERMANENT LOGGING ---
-  console.log(`[WarpedScreen LOG] Component rendering.
-    - Using the "Twin Mesh" architecture.`);
-  // -------------------------
-
+  // --- FIX: Make the mesh completely invisible ---
   return (
-    // ✅ THE DEFINITIVE FIX: A group containing two meshes.
-    // This separates the functional anchor from the visual wireframe.
-    <group>
-      {/* MESH 1: The Functional Anchor for the UI */}
-      <mesh geometry={warpedGeometry} renderOrder={1}>
-        {/* This material is a solid, non-wireframe surface that is nearly invisible.
-            This provides a stable surface for the <Html> transform to work correctly. */}
-        <meshBasicMaterial transparent opacity={0.001} />
-        <Html
-          transform
-          wrapperClass="html-terminal-wrapper"
-          zIndexRange={[100, 0]}
-        >
-          <Suspense fallback={null}>
-            <TerminalComponent />
-          </Suspense>
-        </Html>
-      </mesh>
-
-      {/* MESH 2: The Visual Wireframe You Want to See */}
-      <mesh geometry={warpedGeometry} renderOrder={2}>
-        {/* This is the visible wireframe you said was perfect. It is drawn on top of the anchor. */}
-        <meshBasicMaterial color="lime" wireframe transparent opacity={0.3} />
-      </mesh>
-    </group>
+    <mesh geometry={warpedGeometry}>
+      <meshBasicMaterial transparent opacity={0} />
+    </mesh>
   );
 }

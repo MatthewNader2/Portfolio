@@ -101,5 +101,11 @@ export default function TerminalComponent() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  return <div ref={terminalRef} className="w-full h-full" />;
+  return (
+    // <div
+    //   ref={terminalRef}
+    //   className="w-full h-full terminal-container-has-pointer-events"
+    // />
+    <div ref={terminalRef} className="w-full h-full" />
+  );
 }

@@ -3,10 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-    font-family: "Pixelmix";
-    src: url("/assets/pixelmix.ttf") format("truetype");
-}
 body,
 html {
     margin: 0;
@@ -17,114 +13,36 @@ html {
     background-color: #000;
 }
 
-/* ✅ DEFINITIVE FIX: This is the container for the CSS3DObject.
-   It has a defined size and the subtle border-radius that creates the screen illusion. */
-.iframe-container {
-    width: 1024px; /* The resolution of the content inside the iframe */
-    height: 768px; /* The resolution of the content inside the iframe */
-    background-color: black;
-    border-radius: 3% / 5%; /* Creates the curved corner effect */
-    overflow: hidden; /* Ensures the iframe corners are clipped by the border-radius */
-    text-shadow:
-        0 0 2px #0aff0a,
-        0 0 5px #0aff0a,
-        0 0 1px rgba(0, 255, 0, 0.5);
-    filter: blur(0.3px);
+#root {
+    width: 100%;
+    height: 100%;
+    position: relative;
 }
 
-/* This ensures the iframe itself fills the container perfectly. */
-.iframe-container iframe {
+.render-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* The CSS renderer must be on top but allow clicks to pass through its container */
+#css-renderer {
+    pointer-events: none; /* IMPORTANT */
+    z-index: 1;
+}
+
+/* The WebGL canvas is the base layer */
+#webgl-renderer {
+    pointer-events: auto;
+    z-index: 0;
+}
+
+/* The iframe itself must be interactive */
+.terminal-wrapper iframe {
     width: 100%;
     height: 100%;
     border: none;
-}
-
-/* This class is for the full-screen visual effects overlay ONLY. */
-.crt-overlay-effects {
-    pointer-events: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    transition: opacity 0.5s ease-in;
-}
-.crt-overlay-effects::before,
-.crt-overlay-effects::after {
-    content: " ";
-    display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    pointer-events: none;
-}
-.crt-overlay-effects::before {
-    background: linear-gradient(
-        rgba(18, 16, 16, 0) 50%,
-        rgba(0, 0, 0, 0.25) 50%
-    );
-    background-size: 100% 4px;
-    z-index: 2;
-    animation: scanline 10s linear infinite;
-}
-.crt-overlay-effects::after {
-    background-image: radial-gradient(
-        ellipse at center,
-        rgba(0, 0, 0, 0) 60%,
-        rgba(0, 0, 0, 0.7) 100%
-    );
-    z-index: 10;
-    animation: noise-flicker 0.15s infinite;
-}
-
-.xterm .xterm-viewport {
-    background-color: transparent !important;
-}
-.xterm-viewport::-webkit-scrollbar {
-    width: 10px;
-}
-.xterm-viewport::-webkit-scrollbar-track {
-    background: #111;
-    border-left: 1px solid #00ff00;
-}
-.xterm-viewport::-webkit-scrollbar-thumb {
-    background: #00ff00;
-    box-shadow: 0 0 5px #00ff00;
-}
-.xterm-viewport::-webkit-scrollbar-thumb:hover {
-    background: #33ff33;
-}
-.xterm .xterm-selection-layer .xterm-selection {
-    background-color: rgba(0, 255, 0, 0.3) !important;
-}
-
-@keyframes scanline {
-    from {
-        background-position-y: 100%;
-    }
-    to {
-        background-position-y: 0;
-    }
-}
-@keyframes noise-flicker {
-    0% {
-        opacity: 0.1;
-    }
-    20% {
-        opacity: 0.15;
-    }
-    40% {
-        opacity: 0.12;
-    }
-    60% {
-        opacity: 0.2;
-    }
-    80% {
-        opacity: 0.14;
-    }
-    100% {
-        opacity: 0.1;
-    }
+    pointer-events: auto; /* IMPORTANT */
 }
