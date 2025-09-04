@@ -20,6 +20,7 @@ export default function App() {
     if (!mount) return;
     let raf = null;
 
+    // --- Final Parameters ---
     const finalParams = {
       offsetX: 0,
       offsetY: 0,
@@ -31,6 +32,11 @@ export default function App() {
       scaleY: 0.922,
     };
 
+    // --- Final Touch Scales ---
+    const tvScale = 1.08;
+    const backgroundZoom = 1.1;
+
+    // --- Performance Monitor Setup ---
     const stats = new Stats();
     stats.showPanel(0);
     mount.appendChild(stats.dom);
@@ -38,13 +44,14 @@ export default function App() {
     stats.dom.style.top = "10px";
     stats.dom.style.left = "10px";
 
+    // Basic Three setup
     const scene = new THREE.Scene();
     const cssScene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       50,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000
+      1000,
     );
     camera.position.set(0, 0.1, 0.7);
     camera.lookAt(0, 0, 0);
@@ -69,8 +76,16 @@ export default function App() {
     cssContainer.appendChild(cssRenderer.domElement);
     mount.appendChild(cssContainer);
 
+    // Scene lights and background
     new THREE.TextureLoader().load(backgroundUrl, (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
+
+      // Apply background zoom
+      const zoomFactor = 1 / backgroundZoom;
+      const offsetFactor = (1 - zoomFactor) / 2;
+      t.repeat.set(zoomFactor, zoomFactor);
+      t.offset.set(offsetFactor, offsetFactor);
+
       scene.background = t;
     });
     scene.add(new THREE.AmbientLight(0.7));
@@ -79,6 +94,7 @@ export default function App() {
     dl.position.set(5, 5, 5);
     scene.add(dl);
 
+    // Loaders
     const ktx2Loader = new KTX2Loader().setTranscoderPath("/basis/");
     const gltfLoader = new GLTFLoader();
     gltfLoader.setKTX2Loader(ktx2Loader);
@@ -107,11 +123,18 @@ export default function App() {
       const idxToXY = (idx) => [idx % w, Math.floor(idx / w)];
       const xyToIdx = (x, y) => y * w + x;
       const dirs = [
-        [-1, -1], [0, -1], [1, -1], [1, 0],
-        [1, 1], [0, 1], [-1, 1], [-1, 0],
+        [-1, -1],
+        [0, -1],
+        [1, -1],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [-1, 1],
+        [-1, 0],
       ];
       const [sx, sy] = idxToXY(start);
-      let cx = sx, cy = sy;
+      let cx = sx,
+        cy = sy;
       let pd = 7;
       const contour = [];
       let step = 0;
@@ -144,18 +167,23 @@ export default function App() {
       if (points.length < 3) return points.slice();
       const sqr = (a) => a * a;
       function dist2PointToSeg(px, py, [x1, y1], [x2, y2]) {
-        const A = px - x1, B = py - y1, C = x2 - x1, D = y2 - y1;
+        const A = px - x1,
+          B = py - y1,
+          C = x2 - x1,
+          D = y2 - y1;
         const dot = A * C + B * D;
         const len_sq = C * C + D * D;
         let t = len_sq ? dot / len_sq : 0;
         t = Math.max(0, Math.min(1, t));
-        const cx = x1 + t * C, cy = y1 + t * D;
+        const cx = x1 + t * C,
+          cy = y1 + t * D;
         return sqr(px - cx) + sqr(py - cy);
       }
       const eps2 = epsilon * epsilon;
       const result = [];
       function rdp(arr, i, j) {
-        let idx = -1, maxd = -1;
+        let idx = -1,
+          maxd = -1;
         for (let k = i + 1; k < j; k++) {
           const d2 = dist2PointToSeg(arr[k][0], arr[k][1], arr[i], arr[j]);
           if (d2 > maxd) {
@@ -175,7 +203,13 @@ export default function App() {
       return result;
     }
 
-    function contourToClipPathPercent(contour, rectLeft, rectTop, rectW, rectH) {
+    function contourToClipPathPercent(
+      contour,
+      rectLeft,
+      rectTop,
+      rectW,
+      rectH,
+    ) {
       if (rectW < 1 || rectH < 1) return "polygon(0% 0%)";
       const pts = contour.map(([x, y]) => {
         const px = ((x + 0.5 - rectLeft) / rectW) * 100;
@@ -236,17 +270,33 @@ export default function App() {
           worldToScreenXY(c, camera, canvasRect),
         ]);
       }
-      const canvasW = Math.max(16, Math.floor(window.innerWidth * RASTER_SCALE));
-      const canvasH = Math.max(16, Math.floor(window.innerHeight * RASTER_SCALE));
-      const scaledTris = projectedTris.map((tri) =>
-        tri.map(([x, y]) => [x * RASTER_SCALE, y * RASTER_SCALE])
+      const canvasW = Math.max(
+        16,
+        Math.floor(window.innerWidth * RASTER_SCALE),
       );
-      const { mask } = rasterizeProjectedTriangles(scaledTris, canvasW, canvasH);
+      const canvasH = Math.max(
+        16,
+        Math.floor(window.innerHeight * RASTER_SCALE),
+      );
+      const scaledTris = projectedTris.map((tri) =>
+        tri.map(([x, y]) => [x * RASTER_SCALE, y * RASTER_SCALE]),
+      );
+      const { mask } = rasterizeProjectedTriangles(
+        scaledTris,
+        canvasW,
+        canvasH,
+      );
       const contourScaled = traceBoundary(mask, canvasW, canvasH);
       if (!contourScaled || contourScaled.length === 0) return null;
-      const contour = contourScaled.map(([sx, sy]) => [sx / RASTER_SCALE, sy / RASTER_SCALE]);
+      const contour = contourScaled.map(([sx, sy]) => [
+        sx / RASTER_SCALE,
+        sy / RASTER_SCALE,
+      ]);
       const simplified = simplifyRDP(contour, 2.0);
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
       for (const [x, y] of simplified) {
         if (x < minX) minX = x;
         if (y < minY) minY = y;
@@ -256,14 +306,23 @@ export default function App() {
       const rectW = Math.max(2, maxX - minX);
       const rectH = Math.max(2, maxY - minY);
       const localPoints = simplified.map(([x, y]) => [x - minX, y - minY]);
-      const clipPath = contourToClipPathPercent(localPoints, 0, 0, rectW, rectH);
+      const clipPath = contourToClipPathPercent(
+        localPoints,
+        0,
+        0,
+        rectW,
+        rectH,
+      );
       return clipPath;
     }
 
     gltfLoader.load("/crt_tv_basis.glb", async (gltf) => {
       const tv = gltf.scene;
       tv.traverse((c) => {
-        if (c.isMesh && (c.material?.name === "TVback" || c.material?.name === "TVfront")) {
+        if (
+          c.isMesh &&
+          (c.material?.name === "TVback" || c.material?.name === "TVfront")
+        ) {
           c.material.metalness = 0.4;
           c.material.roughness = 0.6;
         }
@@ -282,11 +341,12 @@ export default function App() {
       const group = new THREE.Group();
       group.position.set(0, -0.18, 0);
       group.rotation.y = Math.PI;
-      group.scale.set(1.08, 1.08, 1.08);
+      group.scale.set(tvScale, tvScale, tvScale); // Apply TV scale
       group.add(tv);
       scene.add(group);
 
-      const termW = 1024, termH = 768;
+      const termW = 1024,
+        termH = 768;
       const wrapper = document.createElement("div");
       wrapper.className = "terminal-wrapper";
       wrapper.style.width = `${termW}px`;
@@ -328,8 +388,14 @@ export default function App() {
         cssObject.position.y -= finalParams.offsetY;
         cssObject.translateZ(finalParams.offsetZ);
 
-        const offsetRotation = new THREE.Euler(finalParams.rotX, finalParams.rotY, finalParams.rotZ);
-        const offsetQuaternion = new THREE.Quaternion().setFromEuler(offsetRotation);
+        const offsetRotation = new THREE.Euler(
+          finalParams.rotX,
+          finalParams.rotY,
+          finalParams.rotZ,
+        );
+        const offsetQuaternion = new THREE.Quaternion().setFromEuler(
+          offsetRotation,
+        );
         cssObject.quaternion.multiply(offsetQuaternion);
 
         cssObject.scale.x *= finalParams.scaleX;
@@ -337,7 +403,11 @@ export default function App() {
 
         clipMesh.position.copy(cssObject.position);
         clipMesh.quaternion.copy(cssObject.quaternion);
-        clipMesh.scale.set(size.x * finalParams.scaleX, size.y * finalParams.scaleY, 1);
+        clipMesh.scale.set(
+          size.x * finalParams.scaleX,
+          size.y * finalParams.scaleY,
+          1,
+        );
       }
 
       function rebuildClipPath() {
@@ -359,23 +429,18 @@ export default function App() {
 
       let resizeTimer = null;
       const onWindowResize = () => {
-        // --- THE FIX: SEPARATE IMMEDIATE AND DEBOUNCED ACTIONS ---
-
-        // 1. IMMEDIATE: Update camera and renderers instantly to prevent cropping.
-        const { clientWidth, clientHeight } = mount; // Use the mount ref for dimensions
+        const { clientWidth, clientHeight } = mount;
         camera.aspect = clientWidth / clientHeight;
         camera.updateProjectionMatrix();
         webglRenderer.setSize(clientWidth, clientHeight);
         cssRenderer.setSize(clientWidth, clientHeight);
 
-        // 2. DEBOUNCED: Rebuild the expensive clip-path only after resizing has stopped.
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(rebuildClipPath, 150);
       };
       window.addEventListener("resize", onWindowResize);
 
       // --- Final Startup Sequence ---
-      // Manually run the resize handler once to ensure a perfect initial state.
       onWindowResize();
       animate();
     });
@@ -384,26 +449,27 @@ export default function App() {
     let lastTime = performance.now();
     let frameCount = 0;
     const logInterval = setInterval(() => {
-        const now = performance.now();
-        const delta = now - lastTime;
-        const fps = ((frameCount / delta) * 1000).toFixed(1);
-        let memoryUsage = 'N/A';
-        if (performance.memory) {
-            memoryUsage = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + ' MB';
-        }
-        console.log({
-            timestamp: new Date().toISOString(),
-            fps: parseFloat(fps),
-            memory: memoryUsage,
-        });
-        lastTime = now;
-        frameCount = 0;
+      const now = performance.now();
+      const delta = now - lastTime;
+      const fps = ((frameCount / delta) * 1000).toFixed(1);
+      let memoryUsage = "N/A";
+      if (performance.memory) {
+        memoryUsage =
+          (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + " MB";
+      }
+      console.log({
+        timestamp: new Date().toISOString(),
+        fps: parseFloat(fps),
+        memory: memoryUsage,
+      });
+      lastTime = now;
+      frameCount = 0;
     }, 2000);
 
     const originalAnimate = window.requestAnimationFrame;
     window.requestAnimationFrame = (...args) => {
-        frameCount++;
-        return originalAnimate(...args);
+      frameCount++;
+      return originalAnimate(...args);
     };
 
     return () => {
