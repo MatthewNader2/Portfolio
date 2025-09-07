@@ -14,7 +14,7 @@
     "@react-three/fiber": "^9.1.2",
     "autoprefixer": "^10.4.21",
     "camera-controls": "^2.10.1",
-    "firebase": "^11.9.1",
+    "firebase": "^11.10.0",
     "html2canvas": "^1.4.1",
     "leva": "^0.10.0",
     "lil-gui": "^0.20.0",

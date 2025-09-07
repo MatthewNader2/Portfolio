@@ -19,6 +19,11 @@ html {
     position: relative;
 }
 
+@font-face {
+    font-family: "Pixelmix";
+    src: url("/assets/pixelmix.ttf") format("truetype");
+}
+
 .render-container {
     position: absolute;
     top: 0;
@@ -45,4 +50,27 @@ html {
     height: 100%;
     border: none;
     pointer-events: auto; /* IMPORTANT */
+}
+
+/* Target the main scrollable area within any xterm instance */
+.xterm .xterm-viewport::-webkit-scrollbar {
+    width: 12px; /* A good, chunky width for a retro feel */
+}
+
+/* The track is the background of the scrollbar */
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+    background: #111; /* A very dark grey, almost black */
+    border-left: 1px solid #00ff00; /* A sharp green line, like a monitor bezel */
+}
+
+/* The thumb is the draggable handle itself */
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    background: #00ff00; /* Bright, solid green */
+    box-shadow: 0 0 5px #00ff00; /* Add a CRT-like glow effect */
+    border: 1px solid #33ff33; /* A slightly lighter border for definition */
+}
+
+/* Make the thumb a bit brighter when you hover over it */
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: #33ff33;
 }
