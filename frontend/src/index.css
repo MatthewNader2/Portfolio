@@ -74,3 +74,14 @@ html {
 .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
     background: #33ff33;
 }
+
+/* FORCE CURSOR STYLES */
+body.force-pointer,
+body.force-pointer * {
+    cursor: pointer !important;
+}
+
+body.force-text,
+body.force-text * {
+    cursor: text !important;
+}

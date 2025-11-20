@@ -1,4 +1,7 @@
+// --- START OF FILE App.jsx ---
+
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom"; // IMPORT THIS
 import * as THREE from "three";
 import { WebGLRenderer } from "three";
 import {
@@ -27,22 +30,328 @@ export default function App() {
   const [portfolioDataString, setPortfolioDataString] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStatus, setLoadingStatus] = useState("Booting system...");
-  const [debugMode, setDebugMode] = useState(false);
+  const [mouseDebug, setMouseDebug] = useState(false);
 
-  // --- Refs for our custom selection logic ---
-  const isSelecting = useRef(false);
-  const selectionStart = useRef(null); // { x, y }
+  // --- NEW: Context Menu State ---
+  const [contextMenu, setContextMenu] = useState(null); // { x, y } or null
 
-  // --- Ref to share Three.js objects between effects ---
-  const threeObjectsRef = useRef({
-    camera: null,
-    eventPlane: null,
-    webglRenderer: null,
-    cssObject: null,
+  // --- Refs for 3D objects and DOM markers ---
+  const threeObjectsRef = useRef({ camera: null, eventPlane: null });
+
+  // These corners are no longer used for mouse calculation, but kept for structure
+  const cornerTlRef = useRef(null);
+  const cornerTrRef = useRef(null);
+  const cornerBlRef = useRef(null);
+  const cornerBrRef = useRef(null);
+  const screenCornersRef = useRef({
+    tl: { x: 0, y: 0 },
+    tr: { x: 0, y: 0 },
+    bl: { x: 0, y: 0 },
+    br: { x: 0, y: 0 },
   });
 
-  // --- Load Wasm Engine and Firebase Data on Startup (Unchanged) ---
+  // --- POINTERS ---
+  const redPointerRef = useRef(null); // Corrected 3D coords
+  const greenPointerRef = useRef(null); // Raw window coords
+
+  const isDraggingOnTerminal = useRef(false);
+  // Store selection state
+  const selectionStartRef = useRef(null); // { col, row }
+  const hoveredLinkRef = useRef(null); // Store the URL if hovering over one
+
+  // --- CONTEXT MENU ACTIONS ---
+  const handleCopy = async () => {
+    const text = terminalComponentRef.current?.getSelection();
+    if (text) {
+      await navigator.clipboard.writeText(text);
+    }
+    setContextMenu(null);
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) terminalComponentRef.current?.paste(text);
+    } catch (err) {
+      console.error("Paste failed", err);
+    }
+    setContextMenu(null);
+  };
+
+  // --- CONTEXT MENU HANDLER ---
+  const handleContextMenu = (event) => {
+    event.preventDefault(); // Block default browser menu
+    setContextMenu({ x: event.clientX, y: event.clientY });
+  };
+
+  // --- TERMINAL COMMAND HANDLER (Moved up to be a simple const function) ---
+  const handleTerminalCommand = (command) => {
+    // --- DEBUG LOGGING ---
+    if (!wasmEngine || !portfolioDataString || !terminalComponentRef.current) {
+      console.warn("Command blocked. System status:", {
+        wasmEngine: !!wasmEngine,
+        dataString: !!portfolioDataString,
+        terminalRef: !!terminalComponentRef.current,
+      });
+      terminalComponentRef.current?.write("\r\nSystem not ready. Please wait.");
+      terminalComponentRef.current?.prompt();
+      return;
+    }
+
+    if (command.trim() === "debug mouse") {
+      const newDebugState = !mouseDebug;
+      setMouseDebug(newDebugState);
+      const status = newDebugState ? "ON" : "OFF";
+      terminalComponentRef.current?.write(
+        `\r\nMouse debugging is now ${status}.\r\n`,
+      );
+      terminalComponentRef.current?.prompt();
+      return;
+    }
+
+    const trimmedCommand = command.trim();
+    if (!trimmedCommand) {
+      terminalComponentRef.current.prompt();
+      return;
+    }
+    const result = wasmEngine.processCommand(
+      trimmedCommand,
+      portfolioDataString,
+    );
+    if (result === "COMMAND_CLEAR") {
+      terminalComponentRef.current.clear();
+    } else {
+      terminalComponentRef.current.write(result);
+      terminalComponentRef.current.prompt();
+    }
+  };
+
   useEffect(() => {
+    if (!mountRef.current) return;
+
+    // --- FIX 3: Updated Coordinate Calculation (Use Container Dimensions) ---
+    const getTermCoords = (event) => {
+      const { camera, eventPlane } = threeObjectsRef.current;
+      // Use the container (mountRef) dimensions, NOT window dimensions
+      const container = mountRef.current;
+      if (!camera || !eventPlane || !container) return null;
+
+      const { clientWidth, clientHeight } = container;
+
+      // Get mouse position relative to the container
+      const rect = container.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+
+      const mouse = new THREE.Vector2();
+      const raycaster = new THREE.Raycaster();
+
+      // Calculate Normalized Device Coordinates (NDC) based on container size
+      mouse.x = (offsetX / clientWidth) * 2 - 1;
+      mouse.y = -(offsetY / clientHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(eventPlane);
+
+      if (intersects.length === 0) {
+        if (redPointerRef.current) redPointerRef.current.style.display = "none";
+        return null;
+      }
+
+      const uv = intersects[0].uv;
+      const PADDING = 50;
+      const TERM_WIDTH = 1024;
+      const TERM_HEIGHT = 768;
+
+      const localX = uv.x * TERM_WIDTH;
+      const localY = (1 - uv.y) * TERM_HEIGHT;
+
+      const dims = terminalComponentRef.current?.getDimensions();
+      if (!dims) return null;
+
+      const contentWidth = TERM_WIDTH - PADDING * 2;
+      const contentHeight = TERM_HEIGHT - PADDING * 2;
+      const cellWidth = contentWidth / dims.cols;
+      const cellHeight = contentHeight / dims.rows;
+
+      // +0.5 Centering Fix
+      let col = Math.floor((localX - PADDING) / cellWidth + 0.5);
+      let row = Math.floor((localY - PADDING) / cellHeight);
+
+      col = Math.max(0, Math.min(col, dims.cols - 1));
+      row = Math.max(0, Math.min(row, dims.rows - 1));
+
+      if (mouseDebug) {
+        const char = terminalComponentRef.current?.getChar(col, row);
+        console.log(`Hover: [${col}, ${row}] "${char}"`);
+        if (redPointerRef.current) {
+          const point = intersects[0].point.clone();
+          point.project(camera);
+          redPointerRef.current.style.display = "block";
+          redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * window.innerWidth}px`;
+          redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * window.innerHeight}px`;
+        }
+
+        if (greenPointerRef.current) {
+          greenPointerRef.current.style.display = "none";
+        }
+      }
+
+      return { col, row, dims };
+    };
+
+    // --- MOUSE HANDLERS ---
+
+    const handleMouseDown = (event) => {
+      if (event.isSynthetic) return;
+
+      // Close context menu on any click
+      if (contextMenu) setContextMenu(null);
+
+      // Only Left Click (0) starts selection
+      if (event.button !== 0) return;
+
+      // Double Click (Word)
+      if (event.detail === 2) {
+        const coords = getTermCoords(event);
+        if (coords) {
+          terminalComponentRef.current?.selectWordAt(coords.col, coords.row);
+          isDraggingOnTerminal.current = false;
+          return;
+        }
+      }
+      // Triple Click (Line)
+      if (event.detail === 3) {
+        const coords = getTermCoords(event);
+        if (coords) {
+          terminalComponentRef.current?.selectLineAt(coords.row);
+          isDraggingOnTerminal.current = false;
+          return;
+        }
+      }
+
+      const coords = getTermCoords(event);
+      if (coords) {
+        isDraggingOnTerminal.current = true;
+        selectionStartRef.current = { col: coords.col, row: coords.row };
+        terminalComponentRef.current?.clearSelection();
+      }
+    };
+
+    const handleMouseMove = (event) => {
+      if (event.isSynthetic) return;
+
+      // Stop processing if Context Menu is open
+      if (contextMenu) return;
+
+      const coords = getTermCoords(event);
+
+      // --- CURSOR & VISUAL FIX ---
+      if (coords) {
+        const link = terminalComponentRef.current?.getLinkAt(
+          coords.col,
+          coords.row,
+        );
+
+        if (link) {
+          // 1. Force Browser Cursor
+          document.body.classList.add("force-pointer");
+          document.body.classList.remove("force-text");
+
+          // 2. Visual Feedback: Turn Red Pointer to CYAN/BLUE
+          if (redPointerRef.current) {
+            redPointerRef.current.style.backgroundColor = "#00ffff"; // Cyan/Blue
+            redPointerRef.current.style.boxShadow = "0 0 10px #00ffff";
+          }
+
+          hoveredLinkRef.current = link;
+        } else {
+          // 1. Force Text Cursor
+          document.body.classList.remove("force-pointer");
+          document.body.classList.add("force-text");
+
+          // 2. Reset Pointer Color
+          if (redPointerRef.current) {
+            redPointerRef.current.style.backgroundColor = "red";
+            redPointerRef.current.style.boxShadow = "none";
+          }
+
+          hoveredLinkRef.current = null;
+        }
+      } else {
+        // Reset everything if not on terminal
+        document.body.classList.remove("force-pointer");
+        document.body.classList.remove("force-text");
+
+        if (redPointerRef.current) {
+          redPointerRef.current.style.backgroundColor = "red";
+          redPointerRef.current.style.boxShadow = "none";
+        }
+
+        hoveredLinkRef.current = null;
+      }
+      // --- CURSOR & VISUAL FIX END ---
+
+      // Drag Selection
+      if (isDraggingOnTerminal.current && coords && selectionStartRef.current) {
+        const start = selectionStartRef.current;
+        const end = coords;
+        const dims = coords.dims;
+
+        let startIdx = start.row * dims.cols + start.col;
+        let endIdx = end.row * dims.cols + end.col;
+
+        if (endIdx < startIdx) {
+          const temp = startIdx;
+          startIdx = endIdx;
+          endIdx = temp;
+        }
+
+        const length = endIdx - startIdx + 1;
+        const sRow = Math.floor(startIdx / dims.cols);
+        const sCol = startIdx % dims.cols;
+
+        terminalComponentRef.current?.select(sCol, sRow, length);
+      }
+    };
+
+    const handleMouseUp = (event) => {
+      if (event.isSynthetic) return;
+
+      // --- LINK CLICK HANDLING ---
+      // Check if it was a simple click (start and end coords are the same)
+      const isClick =
+        selectionStartRef.current &&
+        getTermCoords(event)?.col === selectionStartRef.current.col &&
+        getTermCoords(event)?.row === selectionStartRef.current.row;
+
+      if (isClick && hoveredLinkRef.current) {
+        window.open(hoveredLinkRef.current, "_blank");
+      }
+
+      isDraggingOnTerminal.current = false;
+      selectionStartRef.current = null;
+      if (redPointerRef.current) redPointerRef.current.style.display = "none";
+      if (greenPointerRef.current)
+        greenPointerRef.current.style.display = "none";
+    };
+
+    const mount = mountRef.current;
+    mount.addEventListener("mousedown", handleMouseDown);
+    mount.addEventListener("mousemove", handleMouseMove);
+    mount.addEventListener("mouseup", handleMouseUp);
+    mount.addEventListener("contextmenu", handleContextMenu);
+
+    return () => {
+      mount.removeEventListener("mousedown", handleMouseDown);
+      mount.removeEventListener("mousemove", handleMouseMove);
+      mount.removeEventListener("mouseup", handleMouseUp);
+      mount.removeEventListener("contextmenu", handleContextMenu);
+    };
+  }, [mouseDebug, contextMenu]);
+
+  useEffect(() => {
+    // --- FIX 4: Update initialize function with console.log ---
     const initialize = async () => {
       try {
         setLoadingStatus("Loading command interpreter...");
@@ -72,7 +381,6 @@ export default function App() {
             id: doc.id,
             ...doc.data(),
           }));
-
           if (docs.length === 0) {
             data[collName] = `Content for ${collName} not found.`;
           } else if (
@@ -82,60 +390,30 @@ export default function App() {
           ) {
             data[collName] = docs;
           } else {
+            // Singular collections (about, contact, etc.)
             data[collName] = docs[0];
           }
         }
 
+        // --- DEBUGGING: Check what we are sending to WASM ---
+        console.log("Loaded Portfolio Data:", data);
+
         setPortfolioData(data);
         const jsonString = JSON.stringify(data);
         setPortfolioDataString(jsonString);
+
+        // MOVED HERE: Only say ready if we succeeded
+        setLoadingStatus("Ready.");
       } catch (error) {
         console.error("Initialization failed:", error);
         setLoadingStatus(`Error: ${error.message}`);
       } finally {
         setIsLoading(false);
-        setLoadingStatus("Ready.");
       }
     };
-
     initialize();
   }, []);
 
-  // --- Command Handler (Unchanged) ---
-  const handleTerminalCommand = (command) => {
-    if (!wasmEngine || !portfolioDataString || !terminalComponentRef.current) {
-      terminalComponentRef.current?.write("\r\nSystem not ready. Please wait.");
-      terminalComponentRef.current?.prompt();
-      return;
-    }
-
-    if (command.trim() === "debug mouse") {
-      setDebugMode(!debugMode);
-      terminalComponentRef.current.write(
-        `\r\nMouse debug mode ${debugMode ? "disabled" : "enabled"}`,
-      );
-      terminalComponentRef.current.prompt();
-      return;
-    }
-
-    const trimmedCommand = command.trim();
-    if (!trimmedCommand) {
-      terminalComponentRef.current.prompt();
-      return;
-    }
-    const result = wasmEngine.processCommand(
-      trimmedCommand,
-      portfolioDataString,
-    );
-    if (result === "COMMAND_CLEAR") {
-      terminalComponentRef.current.clear();
-    } else {
-      terminalComponentRef.current.write(result);
-      terminalComponentRef.current.prompt();
-    }
-  };
-
-  // --- Three.js Scene Setup (Unchanged) ---
   useEffect(() => {
     if (isLoading || !mountRef.current || !terminalElRef.current) return;
 
@@ -178,7 +456,6 @@ export default function App() {
     webglRenderer.outputColorSpace = THREE.SRGBColorSpace;
     webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     webglRenderer.toneMappingExposure = 0.85;
-
     const webglContainer = document.createElement("div");
     webglContainer.id = "webgl-renderer";
     webglContainer.className = "render-container";
@@ -204,7 +481,6 @@ export default function App() {
 
     scene.add(new THREE.AmbientLight(0.7));
     scene.add(new THREE.HemisphereLight(0x87ceeb, 0x444444, 1));
-
     const dl = new THREE.DirectionalLight(0xffffff, 2.5);
     dl.position.set(5, 5, 5);
     scene.add(dl);
@@ -217,7 +493,6 @@ export default function App() {
 
     const RASTER_SCALE = 0.5;
 
-    // Helper functions (unchanged)
     function worldToScreenXY(vWorld, camera, canvasRect) {
       const ndc = vWorld.clone().project(camera);
       const x = (ndc.x * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
@@ -359,9 +634,7 @@ export default function App() {
       const idxAttr = geom.index;
       const triCount = idxAttr ? idxAttr.count / 3 : posAttr.count / 3;
       const canvasRect = webglRenderer.domElement.getBoundingClientRect();
-      if (canvasRect.width === 0 || canvasRect.height === 0) {
-        return null;
-      }
+      if (canvasRect.width === 0 || canvasRect.height === 0) return null;
       const projectedTris = [];
       for (let i = 0; i < triCount; i++) {
         let ia = idxAttr ? idxAttr.array[3 * i] : 3 * i;
@@ -372,7 +645,7 @@ export default function App() {
         const c = new THREE.Vector3().fromBufferAttribute(posAttr, ic);
         meshToProject.localToWorld(a);
         meshToProject.localToWorld(b);
-        meshToProject.localToWorld(c);
+        meshToWorld(c);
         projectedTris.push([
           worldToScreenXY(a, camera, canvasRect),
           worldToScreenXY(b, camera, canvasRect),
@@ -406,17 +679,14 @@ export default function App() {
         minY = Infinity,
         maxX = -Infinity,
         maxY = -Infinity;
-
       for (const [x, y] of simplified) {
         if (x < minX) minX = x;
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
         if (y > maxY) maxY = y;
       }
-
       const rectW = Math.max(2, maxX - minX);
       const rectH = Math.max(2, maxY - minY);
-
       const localPoints = simplified.map(([x, y]) => [x - minX, y - minY]);
       const clipPath = contourToClipPathPercent(
         localPoints,
@@ -430,7 +700,6 @@ export default function App() {
 
     let resizeTimer = null;
     let rebuildClipPath = () => {};
-
     const onWindowResize = () => {
       if (mountRef.current) {
         const { clientWidth, clientHeight } = mountRef.current;
@@ -442,41 +711,44 @@ export default function App() {
         resizeTimer = setTimeout(rebuildClipPath, 150);
       }
     };
-
     window.addEventListener("resize", onWindowResize);
 
     const eventPlane = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({
-        color: 0x00ff00,
-        wireframe: true,
-        visible: false,
-      }),
+      new THREE.MeshBasicMaterial({ visible: false }),
     );
     eventPlane.name = "eventPlaneForTerminal";
     scene.add(eventPlane);
 
     gltfLoader.load("/crt_tv_basis.glb", async (gltf) => {
       const tv = gltf.scene;
+
+      let meshIndex = 0;
       tv.traverse((c) => {
-        if (
-          c.isMesh &&
-          (c.material?.name === "TVback" || c.material?.name === "TVfront")
-        ) {
-          c.material.metalness = 0.4;
-          c.material.roughness = 0.6;
+        if (c.isMesh) {
+          if (meshIndex === 0 || meshIndex === 2) {
+            c.visible = false;
+          } else {
+            c.material.metalness = 0.4;
+            c.material.roughness = 0.6;
+            c.visible = true;
+          }
+          meshIndex++;
         }
       });
 
       const screenMesh = tv.getObjectByName("defaultMaterial_2");
       if (!screenMesh) {
-        console.warn("[app] screen mesh not found");
-        scene.add(tv);
-        return;
+        console.warn("[app] screen mesh not found, using a fallback");
+        const fallbackScreen = tv.children[0]?.children?.find(
+          (m) => m.isMesh && m.name.includes("defaultMaterial"),
+        );
+        if (!fallbackScreen) {
+          scene.add(tv);
+          return;
+        }
+        screenMesh = fallbackScreen;
       }
-
-      const backPanel = tv.getObjectByName("defaultMaterial");
-      if (backPanel) backPanel.visible = false;
       screenMesh.visible = false;
 
       const group = new THREE.Group();
@@ -499,17 +771,7 @@ export default function App() {
       clipMesh.material = new THREE.MeshBasicMaterial({ visible: false });
       scene.add(clipMesh);
 
-      const basePosition = new THREE.Vector3();
-      const baseQuaternion = new THREE.Quaternion();
-      const baseScale = new THREE.Vector3();
-      const screenBox = new THREE.Box3();
-
-      threeObjectsRef.current = {
-        camera,
-        eventPlane,
-        webglRenderer,
-        cssObject,
-      };
+      threeObjectsRef.current = { camera, eventPlane };
 
       rebuildClipPath = () => {
         const terminalDiv = terminalElRef.current;
@@ -525,30 +787,24 @@ export default function App() {
         const termW = 1024,
           termH = 768;
         screenMesh.updateWorldMatrix(true, false);
-        screenBox.setFromObject(screenMesh);
-        screenBox.getCenter(basePosition);
-        screenMesh.getWorldQuaternion(baseQuaternion);
+        const screenBox = new THREE.Box3().setFromObject(screenMesh);
+        const basePosition = screenBox.getCenter(new THREE.Vector3());
+        const baseQuaternion = screenMesh.getWorldQuaternion(
+          new THREE.Quaternion(),
+        );
         const size = screenBox.getSize(new THREE.Vector3());
-        baseScale.set(size.x / termW, size.y / termH, 1);
+        const baseScale = new THREE.Vector3(size.x / termW, size.y / termH, 1);
 
         cssObject.position.copy(basePosition);
         cssObject.quaternion.copy(baseQuaternion);
         cssObject.scale.copy(baseScale);
-
         cssObject.position.x += finalParams.offsetX;
         cssObject.position.y -= finalParams.offsetY;
         cssObject.translateZ(finalParams.offsetZ);
-
-        const offsetRotation = new THREE.Euler(
-          finalParams.rotX,
-          finalParams.rotY,
-          finalParams.rotZ,
-        );
         const offsetQuaternion = new THREE.Quaternion().setFromEuler(
-          offsetRotation,
+          new THREE.Euler(finalParams.rotX, finalParams.rotY, finalParams.rotZ),
         );
         cssObject.quaternion.multiply(offsetQuaternion);
-
         cssObject.scale.x *= finalParams.scaleX;
         cssObject.scale.y *= finalParams.scaleY;
 
@@ -569,10 +825,31 @@ export default function App() {
         );
       }
 
+      function updateCornerPositions() {
+        if (
+          cornerTlRef.current &&
+          cornerTrRef.current &&
+          cornerBlRef.current &&
+          cornerBrRef.current
+        ) {
+          const tl = cornerTlRef.current.getBoundingClientRect();
+          const tr = cornerTrRef.current.getBoundingClientRect();
+          const bl = cornerBlRef.current.getBoundingClientRect();
+          const br = cornerBrRef.current.getBoundingClientRect();
+          screenCornersRef.current = {
+            tl: { x: tl.left, y: tl.top },
+            tr: { x: tr.left, y: tr.top },
+            bl: { x: bl.left, y: bl.top },
+            br: { x: br.left, y: br.top },
+          };
+        }
+      }
+
       function animate() {
         raf = requestAnimationFrame(animate);
         stats.begin();
         updateTerminalTransform();
+        updateCornerPositions();
         webglRenderer.render(scene, camera);
         cssRenderer.render(cssScene, camera);
         stats.end();
@@ -590,91 +867,6 @@ export default function App() {
     };
   }, [isLoading]);
 
-  // --- The Final Mouse Interaction Brain ---
-  const findLinkAt = (col, row) => {
-    const term = terminalComponentRef.current?.getTerminal();
-    if (!term) return null;
-    const linkProvider = term._core.linkProvider;
-    if (!linkProvider) return null;
-
-    let foundLink = null;
-    for (const linkMatcher of linkProvider._linkMatchers) {
-      linkMatcher.provider.provideLinks(row + 1, (link) => {
-        if (link && col >= link.range.start.x - 1 && col < link.range.end.x) {
-          foundLink = link;
-        }
-      });
-      if (foundLink) break;
-    }
-    return foundLink;
-  };
-
-  const handleTerminalData = (data) => {
-    if (data.startsWith("\x1b[<")) {
-      const match = /\x1b\[<(\d+);(\d+);(\d+)([Mm])/.exec(data);
-      if (!match) return;
-
-      const button = parseInt(match[1], 10);
-      const col = parseInt(match[2], 10) - 1;
-      const row = parseInt(match[3], 10) - 1;
-      const type = match[4];
-
-      if (debugMode && (type === "M" || type === "m")) {
-        console.log(
-          `Mouse Report: button=${button}, col=${col}, row=${row}, type=${type}`,
-        );
-      }
-
-      if (type === "M") {
-        // Mouse Down or Drag
-        if (button === 0) {
-          // Left Button Press
-          isSelecting.current = true;
-          selectionStart.current = { x: col, y: row };
-          terminalComponentRef.current?.select(col, row, 1, 1);
-        } else if (button === 32 && isSelecting.current) {
-          // Drag
-          const start = selectionStart.current;
-          const end = { x: col, y: row };
-
-          const startCol = Math.min(start.x, end.x);
-          const startRow = Math.min(start.y, end.y);
-          const endCol = Math.max(start.x, end.x);
-          const endRow = Math.max(start.y, end.y);
-
-          const width = endCol - startCol + 1;
-          const height = endRow - startRow + 1;
-
-          terminalComponentRef.current?.select(
-            startCol,
-            startRow,
-            width,
-            height,
-          );
-        }
-      } else if (type === "m") {
-        // Mouse Up
-        if (button === 0) {
-          // Check if it was a click (no drag)
-          if (
-            isSelecting.current &&
-            selectionStart.current.x === col &&
-            selectionStart.current.y === row
-          ) {
-            const link = findLinkAt(col, row);
-            if (link) {
-              console.log("Link clicked:", link.text);
-              window.open(link.text, "_blank");
-            }
-          }
-          isSelecting.current = false;
-          // Clear the 1x1 selection box after a click
-          setTimeout(() => terminalComponentRef.current?.clearSelection(), 50);
-        }
-      }
-    }
-  };
-
   return (
     <div
       ref={mountRef}
@@ -683,15 +875,101 @@ export default function App() {
         height: "100%",
         position: "relative",
         touchAction: "none",
-        cursor: "auto",
+        // IMPORTANT: Do NOT add cursor: "auto" here.
       }}
     >
+      {/* --- POINTERS --- */}
+      <div
+        ref={redPointerRef}
+        style={{
+          position: "fixed",
+          width: "5px",
+          height: "5px",
+          backgroundColor: "red",
+          borderRadius: "50%",
+          zIndex: 9999,
+          pointerEvents: "none",
+          display: "none",
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+      <div
+        ref={greenPointerRef}
+        style={{
+          position: "fixed",
+          width: "5px",
+          height: "5px",
+          backgroundColor: "green",
+          borderRadius: "50%",
+          zIndex: 9998,
+          pointerEvents: "none",
+          display: "none",
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+
+      {/* --- CRASH FIX: Use Portal for Context Menu --- */}
+      {contextMenu &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: contextMenu.y,
+              left: contextMenu.x,
+              backgroundColor: "#000",
+              border: "1px solid #00ff00",
+              color: "#00ff00",
+              fontFamily: '"Pixelmix", monospace',
+              fontSize: "14px",
+              zIndex: 100000, // Very high z-index
+              padding: "5px 0",
+              boxShadow: "0 0 15px rgba(0, 255, 0, 0.4)",
+              minWidth: "120px",
+            }}
+            onContextMenu={(e) => e.preventDefault()} // Prevent default inside custom menu
+          >
+            <div
+              style={{
+                padding: "8px 20px",
+                cursor: "pointer",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#003300")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
+              onClick={handleCopy}
+            >
+              Copy
+            </div>
+            <div
+              style={{
+                padding: "8px 20px",
+                cursor: "pointer",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#003300")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
+              onClick={handlePaste}
+            >
+              Paste
+            </div>
+          </div>,
+          document.body, // Render directly to body
+        )}
+
       <div
         ref={terminalElRef}
         style={{
           width: "1024px",
           height: "768px",
-          pointerEvents: "auto",
+          pointerEvents: "none",
           opacity: 0,
           transition: "opacity 0.3s ease-in",
           backgroundColor: "black",
@@ -700,11 +978,47 @@ export default function App() {
           left: 0,
         }}
       >
+        {/* Corners for Debugging */}
+        <div
+          ref={cornerTlRef}
+          style={{ position: "absolute", top: 0, left: 0, width: 1, height: 1 }}
+        />
+        <div
+          ref={cornerTrRef}
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            width: 1,
+            height: 1,
+          }}
+        />
+        <div
+          ref={cornerBlRef}
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            width: 1,
+            height: 1,
+          }}
+        />
+        <div
+          ref={cornerBrRef}
+          style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            width: 1,
+            height: 1,
+          }}
+        />
+
         {!isLoading && wasmEngine ? (
           <TerminalComponent
             ref={terminalComponentRef}
             onCommand={handleTerminalCommand}
-            onData={handleTerminalData}
+            mouseDebug={mouseDebug}
           />
         ) : (
           <div

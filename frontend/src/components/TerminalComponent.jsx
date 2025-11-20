@@ -1,3 +1,5 @@
+// --- START OF FILE TerminalComponent.jsx ---
+
 import React, {
   useEffect,
   useRef,
@@ -6,248 +8,413 @@ import React, {
 } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
-import { WebLinksAddon } from "xterm-addon-web-links";
 import "xterm/css/xterm.css";
 
-export const TerminalComponent = forwardRef(({ onCommand, onData }, ref) => {
-  const terminalContainerRef = useRef(null);
-  const term = useRef(null);
-  const fitAddon = useRef(new FitAddon());
+export const TerminalComponent = forwardRef(
+  ({ onCommand, mouseDebug }, ref) => {
+    const terminalContainerRef = useRef(null);
+    const term = useRef(null);
+    const fitAddon = useRef(new FitAddon());
 
-  const state = useRef({
-    currentLine: "",
-    cursorIndex: 0,
-    history: [],
-    historyIndex: -1,
-    suggestion: "",
-    tabPressCount: 0,
-  });
+    const bluePointerRef = useRef(null);
+    const yellowPointerRef = useRef(null);
 
-  const availableCommands = ["cat", "echo", "help", "clear", "cls"];
-  const availableSections = [
-    "about",
-    "projects",
-    "skills",
-    "experience",
-    "education",
-    "contact",
-    "awards",
-  ];
+    const state = useRef({
+      currentLine: "",
+      cursorIndex: 0,
+      history: [],
+      historyIndex: -1,
+      suggestion: "",
+      tabPressCount: 0,
+    });
 
-  useImperativeHandle(ref, () => ({
-    write: (text) => term.current?.write(text.replace(/\r?\n/g, "\r\n")),
-    clear: () => term.current?.clear(),
-    prompt: () => term.current?.write("\r\n> "),
-    focus: () => term.current?.focus(),
-    // Expose the raw terminal instance for addons
-    getTerminal: () => term.current,
-    // Expose the official select API
-    select: (col, row, width, height) => {
-      term.current?.select(col, row, width, height);
-    },
-    getSelection: () => term.current?.getSelection(),
-    clearSelection: () => term.current?.clearSelection(),
-  }));
+    const availableCommands = ["cat", "echo", "help", "clear", "cls", "debug"];
+    const availableSections = [
+      "about",
+      "projects",
+      "skills",
+      "experience",
+      "education",
+      "contact",
+      "awards",
+    ];
 
-  useEffect(() => {
-    if (terminalContainerRef.current && !term.current) {
-      const completionSound = new Audio("/assets/bell.oga");
-      completionSound.volume = 0.8;
-
-      term.current = new Terminal({
-        fontFamily: '"Pixelmix", monospace',
-        fontSize: 16,
-        cursorBlink: true,
-        theme: {
-          background: "rgba(0, 0, 0, 0)",
-          foreground: "#00ff00",
-          cursor: "#00ff00",
-          selectionBackground: "rgba(0, 255, 0, 0.3)",
-        },
-        allowTransparency: true,
-      });
-
-      term.current.loadAddon(new WebLinksAddon());
-      term.current.loadAddon(fitAddon.current);
-      term.current.open(terminalContainerRef.current);
-      fitAddon.current.fit();
-
-      // Enable Mouse Reporting
-      term.current.write("\x1b[?1003h\x1b[?1006h");
-
-      // Forward all raw data events to the parent
-      term.current.onData((data) => {
-        onData(data);
-      });
-
-      term.current.writeln("Welcome to Matthew's Interactive Portfolio!");
-      term.current.writeln("Type 'help' for a list of commands.");
-      term.current.writeln("Links are now fully functional:");
-      term.current.writeln(" - https://github.com/matthewmiglio");
-      term.current.writeln(" - https://www.google.com");
-      term.current.write("> ");
+    const redrawLine = () => {
+      if (!term.current) return;
+      const s = state.current;
 
       const getSuggestion = (line) => {
-        if (line.length === 0 || line.endsWith(" ")) return "";
-        const currentWord = line.slice(line.lastIndexOf(" ") + 1);
-        if (currentWord === "") return "";
-        const source =
-          line.indexOf(" ") === -1 ? availableCommands : availableSections;
+        if (!line || line.endsWith(" ")) return "";
+        const word = line.slice(line.lastIndexOf(" ") + 1);
+        const source = line.includes(" ")
+          ? availableSections
+          : availableCommands;
         const match = source.find(
-          (item) => item.startsWith(currentWord) && item !== currentWord,
+          (item) => item.startsWith(word) && item !== word,
         );
-        return match ? match.slice(currentWord.length) : "";
+        return match ? match.slice(word.length) : "";
       };
 
-      const redrawLine = () => {
-        const { currentLine, cursorIndex } = state.current;
-        const suggestion = getSuggestion(currentLine);
-        state.current.suggestion = suggestion;
-        let output = `\x1b[2K\r> ${currentLine}`;
-        if (suggestion && cursorIndex === currentLine.length) {
-          output += `\x1b[38;5;28m${suggestion}\x1b[0m`;
+      const suggestion = getSuggestion(s.currentLine);
+      s.suggestion = suggestion;
+
+      let output = `\x1b[2K\r> ${s.currentLine}`;
+      if (suggestion && s.cursorIndex === s.currentLine.length) {
+        output += `\x1b[38;5;28m${suggestion}\x1b[0m`;
+      }
+      term.current.write(output);
+      term.current.write(`\x1b[${s.cursorIndex + 3}G`);
+    };
+
+    const handleInputText = (text) => {
+      const s = state.current;
+      s.currentLine =
+        s.currentLine.slice(0, s.cursorIndex) +
+        text +
+        s.currentLine.slice(s.cursorIndex);
+      s.cursorIndex += text.length;
+      redrawLine();
+    };
+
+    useImperativeHandle(ref, () => ({
+      write: (text) => term.current?.write(text.replace(/\r?\n/g, "\r\n")),
+      clear: () => term.current?.clear(),
+      prompt: () => term.current?.write("\r\n> "),
+      focus: () => term.current?.focus(),
+
+      getDimensions: () =>
+        term.current
+          ? { cols: term.current.cols, rows: term.current.rows }
+          : null,
+      select: (col, row, length) => term.current?.select(col, row, length),
+      clearSelection: () => term.current?.clearSelection(),
+      getSelection: () => term.current?.getSelection(),
+
+      // --- FIX 3: Refined selectWordAt logic (Precision) ---
+      selectWordAt: (col, row) => {
+        if (!term.current) return;
+        const line = term.current.buffer.active.getLine(row);
+        if (!line) return;
+
+        // Use translateToString(false) to preserve layout
+        const str = line.translateToString(false);
+
+        // Safety check: if clicked on empty space, do nothing
+        if (!str[col] || str[col] === " ") return;
+
+        let start = col;
+        let end = col;
+
+        // Scan Left: Stop at space or start of line
+        while (start > 0) {
+          const char = str[start - 1];
+          if (!char || char === " ") break;
+          start--;
         }
-        term.current.write(output);
-        term.current.write(`\x1b[${cursorIndex + 3}G`);
-      };
 
-      term.current.onKey(({ key, domEvent }) => {
-        domEvent.preventDefault();
-        const s = state.current;
-        if (domEvent.key !== "Tab") s.tabPressCount = 0;
+        // Scan Right: Stop at space or end of line
+        while (end < str.length) {
+          const char = str[end];
+          if (!char || char === " ") break;
+          end++;
+        }
 
-        switch (domEvent.key) {
-          case "Enter":
-            if (s.currentLine.trim() !== "") {
-              term.current.write("\r\n");
-              onCommand(s.currentLine.trim());
-              s.history = [s.currentLine.trim(), ...s.history];
-              s.historyIndex = -1;
-            } else {
-              onCommand("");
+        term.current.select(start, row, end - start);
+      },
+
+      selectLineAt: (row) => {
+        if (!term.current) return;
+        term.current.select(0, row, term.current.cols);
+      },
+
+      paste: (text) => handleInputText(text),
+
+      getChar: (col, row) => {
+        const line = term.current?.buffer.active.getLine(row);
+        return line?.getCell(col)?.getChars() || null;
+      },
+
+      getLinkAt: (col, row) => {
+        if (!term.current) return null;
+        // Access the buffer directly
+        const buffer = term.current.buffer.active;
+        const line = buffer.getLine(row);
+        if (!line) return null;
+
+        // Translate line to string
+        const lineStr = line.translateToString(true);
+
+        // Regex to find HTTP/HTTPS URLs
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        let match;
+
+        while ((match = urlRegex.exec(lineStr)) !== null) {
+          const start = match.index;
+          const end = start + match[0].length;
+
+          // Check if the mouse column is strictly within the link bounds
+          if (col >= start && col < end) {
+            return match[0];
+          }
+        }
+        return null;
+      },
+
+      getViewportBounds: () => {
+        const target = term.current?.element.querySelector(".xterm-viewport");
+        return target?.getBoundingClientRect();
+      },
+    }));
+
+    useEffect(() => {
+      if (terminalContainerRef.current && !term.current) {
+        const completionSound = new Audio("/assets/bell.oga");
+        completionSound.volume = 0.8;
+
+        // --- FIX 2: High Contrast Selection Theme ---
+        term.current = new Terminal({
+          fontFamily: '"Pixelmix", monospace',
+          fontSize: 16,
+          cursorBlink: true,
+          theme: {
+            background: "rgba(0, 0, 0, 0)",
+            foreground: "#00ff00",
+            cursor: "#00ff00",
+            selectionBackground: "#00ff00", // Bright Green background
+            selectionForeground: "#000000", // Black text (ensures readability)
+          },
+          allowTransparency: true,
+        });
+
+        term.current.loadAddon(fitAddon.current);
+        term.current.open(terminalContainerRef.current);
+        term.current.focus(); // Ensure focus for shortcuts
+
+        // --- Custom Key Handler for Shortcuts ---
+        term.current.attachCustomKeyEventHandler((arg) => {
+          // Only handle keydown
+          if (arg.type !== "keydown") return true;
+
+          // CTRL+C: Copy if selection exists, else Interrupt
+          if (arg.ctrlKey && arg.key === "c") {
+            const selection = term.current.getSelection();
+            if (selection) {
+              // Use navigator.clipboard.writeText for programmatic copy
+              navigator.clipboard.writeText(selection);
+              return false; // Prevent Xterm from handling (blocking ^C)
             }
-            s.currentLine = "";
-            s.cursorIndex = 0;
-            s.suggestion = "";
-            break;
-          case "Backspace":
-            if (s.cursorIndex > 0) {
-              s.currentLine =
-                s.currentLine.slice(0, s.cursorIndex - 1) +
-                s.currentLine.slice(s.cursorIndex);
-              s.cursorIndex--;
-              redrawLine();
-            }
-            break;
-          case "Delete":
-            if (s.cursorIndex < s.currentLine.length) {
-              s.currentLine =
-                s.currentLine.slice(0, s.cursorIndex) +
-                s.currentLine.slice(s.cursorIndex + 1);
-              redrawLine();
-            }
-            break;
-          case "ArrowLeft":
-            if (s.cursorIndex > 0) {
-              s.cursorIndex--;
-              redrawLine();
-            }
-            break;
-          case "ArrowRight":
-            if (s.suggestion && s.cursorIndex === s.currentLine.length) {
-              s.currentLine += s.suggestion;
-              s.cursorIndex = s.currentLine.length;
-              redrawLine();
-            } else if (s.cursorIndex < s.currentLine.length) {
-              s.cursorIndex++;
-              redrawLine();
-            }
-            break;
-          case "Tab":
-            if (s.suggestion) {
-              s.currentLine += s.suggestion;
-              if (s.currentLine === "cat" || s.currentLine === "echo") {
-                s.currentLine += " ";
+            // If no selection, let Xterm handle (sending ^C interrupt)
+            return true;
+          }
+
+          // CTRL+V or Shift+Insert: Paste
+          if (
+            (arg.ctrlKey && arg.key === "v") ||
+            (arg.shiftKey && arg.key === "Insert")
+          ) {
+            // Use navigator.clipboard.readText for programmatic paste
+            navigator.clipboard
+              .readText()
+              .then((text) => {
+                handleInputText(text);
+              })
+              .catch((err) => {
+                console.error("Paste failed:", err);
+              });
+            return false; // Prevent Xterm default
+          }
+
+          return true; // Allow other keys
+        });
+
+        term.current.writeln("Welcome to Matthew's Interactive Portfolio!");
+        term.current.writeln("Type 'help' for a list of commands.");
+        term.current.writeln("Type 'debug mouse' to toggle mouse debugging.");
+        term.current.writeln("Links are now fully functional:");
+        term.current.writeln(" - https://github.com/matthewmiglio");
+        term.current.writeln(" - https://www.google.com");
+        term.current.write("> ");
+
+        // Fit after initial content is written
+        fitAddon.current.fit();
+
+        term.current.onKey(({ key, domEvent }) => {
+          // Ignore keys with modifiers (handled by custom handler or browser)
+          if (domEvent.ctrlKey || domEvent.altKey || domEvent.metaKey) return;
+
+          const s = state.current;
+          if (domEvent.key !== "Tab") s.tabPressCount = 0;
+
+          switch (domEvent.key) {
+            case "Enter":
+              const trimmedLine = s.currentLine.trim();
+              if (trimmedLine) {
+                term.current.write("\r\n");
+                onCommand(trimmedLine);
+                s.history = [trimmedLine, ...s.history];
+              } else {
+                onCommand("");
               }
-              s.cursorIndex = s.currentLine.length;
-              redrawLine();
-            } else {
-              const currentWord = s.currentLine.slice(
-                s.currentLine.lastIndexOf(" ") + 1,
-              );
-              const source =
-                s.currentLine.indexOf(" ") === -1
-                  ? availableCommands
-                  : availableSections;
-              const matches = source.filter((item) =>
-                item.startsWith(currentWord),
-              );
-              if (matches.length > 1 && s.tabPressCount >= 1) {
-                completionSound.play().catch((e) => {});
-                term.current.write("\r\n" + matches.join("   ") + "\r\n");
-                redrawLine();
-              }
-              s.tabPressCount++;
-            }
-            break;
-          case "ArrowUp":
-            if (s.historyIndex < s.history.length - 1) {
-              s.historyIndex++;
-              s.currentLine = s.history[s.historyIndex];
-              s.cursorIndex = s.currentLine.length;
-              redrawLine();
-            }
-            break;
-          case "ArrowDown":
-            if (s.historyIndex > 0) {
-              s.historyIndex--;
-              s.currentLine = s.history[s.historyIndex];
-              s.cursorIndex = s.currentLine.length;
-              redrawLine();
-            } else {
-              s.historyIndex = -1;
               s.currentLine = "";
               s.cursorIndex = 0;
+              s.suggestion = "";
+              s.historyIndex = -1;
+              break;
+            case "Backspace":
+              if (s.cursorIndex > 0) {
+                s.currentLine =
+                  s.currentLine.slice(0, s.cursorIndex - 1) +
+                  s.currentLine.slice(s.cursorIndex);
+                s.cursorIndex--;
+                redrawLine();
+              }
+              break;
+            case "Delete":
+              if (s.cursorIndex < s.currentLine.length) {
+                s.currentLine =
+                  s.currentLine.slice(0, s.cursorIndex) +
+                  s.currentLine.slice(s.cursorIndex + 1);
+                redrawLine();
+              }
+              break;
+            case "ArrowLeft":
+              if (s.cursorIndex > 0) {
+                s.cursorIndex--;
+                redrawLine();
+              }
+              break;
+            case "ArrowRight":
+              if (s.suggestion && s.cursorIndex === s.currentLine.length) {
+                s.currentLine += s.suggestion;
+                s.cursorIndex = s.currentLine.length;
+              } else if (s.cursorIndex < s.currentLine.length) {
+                s.cursorIndex++;
+              }
               redrawLine();
-            }
-            break;
-          default:
-            if (
-              key.length === 1 &&
-              !domEvent.altKey &&
-              !domEvent.ctrlKey &&
-              !domEvent.metaKey
-            ) {
-              s.currentLine =
-                s.currentLine.slice(0, s.cursorIndex) +
-                key +
-                s.currentLine.slice(s.cursorIndex);
-              s.cursorIndex++;
+              break;
+            case "Tab":
+              if (s.suggestion) {
+                s.currentLine += s.suggestion;
+                if (s.currentLine === "cat" || s.currentLine === "echo")
+                  s.currentLine += " ";
+                s.cursorIndex = s.currentLine.length;
+                redrawLine();
+              } else {
+                const currentWord = s.currentLine.slice(
+                  s.currentLine.lastIndexOf(" ") + 1,
+                );
+                const source = s.currentLine.includes(" ")
+                  ? availableSections
+                  : availableCommands;
+                const matches = source.filter((item) =>
+                  item.startsWith(currentWord),
+                );
+                if (matches.length > 1 && s.tabPressCount >= 1) {
+                  completionSound.play().catch(() => {});
+                  term.current.write("\r\n" + matches.join("   ") + "\r\n");
+                  redrawLine();
+                }
+                s.tabPressCount++;
+              }
+              break;
+            case "ArrowUp":
+              if (s.historyIndex < s.history.length - 1) {
+                s.historyIndex++;
+                s.currentLine = s.history[s.historyIndex];
+                s.cursorIndex = s.currentLine.length;
+                redrawLine();
+              }
+              break;
+            case "ArrowDown":
+              if (s.historyIndex >= 0) {
+                s.historyIndex--;
+                s.currentLine =
+                  s.historyIndex >= 0 ? s.history[s.historyIndex] : "";
+                s.cursorIndex = s.currentLine.length;
+              } else {
+                s.currentLine = "";
+                s.cursorIndex = 0;
+              }
               redrawLine();
-            }
-            break;
+              break;
+            default:
+              if (key.length === 1) handleInputText(key);
+          }
+        });
+      }
+    }, [onCommand]);
+
+    // Debug pointer useEffect
+    useEffect(() => {
+      const target = term.current?.element.querySelector(".xterm-viewport");
+      if (!target) return;
+
+      const createPointer = (color, zIndex) => {
+        const pointer = document.createElement("div");
+        pointer.style.position = "fixed";
+        pointer.style.width = "5px";
+        pointer.style.height = "5px";
+        pointer.style.backgroundColor = color;
+        pointer.style.borderRadius = "50%";
+        pointer.style.zIndex = zIndex;
+        pointer.style.pointerEvents = "none";
+        pointer.style.transform = "translate(-50%, -50%)";
+        document.body.appendChild(pointer);
+        return pointer;
+      };
+
+      if (mouseDebug) {
+        if (!bluePointerRef.current)
+          bluePointerRef.current = createPointer("blue", "10000");
+        if (!yellowPointerRef.current)
+          yellowPointerRef.current = createPointer("yellow", "10001");
+        bluePointerRef.current.style.display = "block";
+        yellowPointerRef.current.style.display = "block";
+      } else {
+        if (bluePointerRef.current)
+          bluePointerRef.current.style.display = "none";
+        if (yellowPointerRef.current)
+          yellowPointerRef.current.style.display = "none";
+        // Cleanup if moving from debug ON to OFF
+        if (bluePointerRef.current) bluePointerRef.current.remove();
+        if (yellowPointerRef.current) yellowPointerRef.current.remove();
+        bluePointerRef.current = null;
+        yellowPointerRef.current = null;
+        return;
+      }
+
+      const handleNativeEvent = (e) => {
+        if (mouseDebug && yellowPointerRef.current) {
+          yellowPointerRef.current.style.left = `${e.clientX}px`;
+          yellowPointerRef.current.style.top = `${e.clientY}px`;
         }
-      });
-    }
+      };
 
-    return () => {
-      term.current?.write("\x1b[?1003l\x1b[?1006l");
-    };
-  }, []);
+      window.addEventListener("mousemove", handleNativeEvent);
 
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "50px",
-        boxSizing: "border-box",
-      }}
-    >
+      return () => {
+        window.removeEventListener("mousemove", handleNativeEvent);
+        if (bluePointerRef.current) bluePointerRef.current.remove();
+        if (yellowPointerRef.current) yellowPointerRef.current.remove();
+        bluePointerRef.current = null;
+        yellowPointerRef.current = null;
+      };
+    }, [mouseDebug]);
+
+    return (
       <div
-        ref={terminalContainerRef}
-        style={{ width: "100%", height: "100%" }}
-      />
-    </div>
-  );
-});
+        style={{
+          width: "100%",
+          height: "100%",
+          padding: "50px",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          ref={terminalContainerRef}
+          style={{ width: "100%", height: "100%", position: "relative" }}
+        />
+      </div>
+    );
+  },
+);
