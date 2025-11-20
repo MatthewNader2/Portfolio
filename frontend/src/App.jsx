@@ -36,9 +36,13 @@ export default function App() {
   const [contextMenu, setContextMenu] = useState(null);
 
   // --- Refs for 3D objects ---
-  const threeObjectsRef = useRef({ camera: null, eventPlane: null });
+  const threeObjectsRef = useRef({
+    camera: null,
+    eventPlane: null,
+    renderer: null,
+  });
 
-  // Corners (kept for structure/debug)
+  // Corners (Restored for logic/debug)
   const cornerTlRef = useRef(null);
   const cornerTrRef = useRef(null);
   const cornerBlRef = useRef(null);
@@ -84,11 +88,6 @@ export default function App() {
 
   const handleTerminalCommand = (command) => {
     if (!wasmEngine || !portfolioDataString || !terminalComponentRef.current) {
-      console.warn("Command blocked. System status:", {
-        wasmEngine: !!wasmEngine,
-        dataString: !!portfolioDataString,
-        terminalRef: !!terminalComponentRef.current,
-      });
       terminalComponentRef.current?.write("\r\nSystem not ready. Please wait.");
       terminalComponentRef.current?.prompt();
       return;
@@ -132,16 +131,14 @@ export default function App() {
 
       const { clientWidth, clientHeight } = container;
 
-      // --- FIX 1: Just-In-Time Camera Correction ---
-      // Forces the camera to match the current container size exactly.
-      // This fixes the "shift" when DevTools opens or window resizes.
+      // --- JIT Camera Correction (Fixes Shift on Resize/DevTools) ---
       const currentAspect = clientWidth / clientHeight;
       if (Math.abs(camera.aspect - currentAspect) > 0.001) {
         camera.aspect = currentAspect;
         camera.updateProjectionMatrix();
       }
 
-      // Ensure the plane matrix is up to date for raycasting
+      // Ensure matrix is fresh for raycasting
       eventPlane.updateMatrixWorld();
 
       const rect = container.getBoundingClientRect();
@@ -192,12 +189,8 @@ export default function App() {
           const point = intersects[0].point.clone();
           point.project(camera);
           redPointerRef.current.style.display = "block";
-          redPointerRef.current.style.left = `${
-            (point.x * 0.5 + 0.5) * window.innerWidth
-          }px`;
-          redPointerRef.current.style.top = `${
-            -(point.y * 0.5 - 0.5) * window.innerHeight
-          }px`;
+          redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * clientWidth}px`;
+          redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * clientHeight}px`;
         }
       }
 
@@ -340,43 +333,65 @@ export default function App() {
 
         setLoadingStatus("Contacting database...");
 
-        // --- FIX 2: Data Loading for 'echo about' and 'echo contact' ---
-        const collectionsToFetch = [
+        const data = {};
+
+        // 1. Fetch Projects, Experience, Education, Awards (Arrays)
+        const arrayCollections = [
           "projects",
-          "skills",
           "experience",
           "education",
           "awards",
         ];
-        const data = {};
-
-        // 1. Fetch Array Collections (projects, etc.)
-        for (const collName of collectionsToFetch) {
+        for (const collName of arrayCollections) {
           const querySnapshot = await getDocs(collection(db, collName));
           const docs = querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }));
-          if (docs.length === 0) {
-            data[collName] = `Content for ${collName} not found.`;
-          } else {
-            data[collName] = docs;
-          }
+          data[collName] =
+            docs.length > 0 ? docs : `Content for ${collName} not found.`;
         }
 
-        // 2. Fetch Personal Info & Convert to STRING for the Terminal
+        // 2. Fetch & Format SKILLS (Fixing empty output)
+        const skillsSnap = await getDocs(collection(db, "skills"));
+        if (!skillsSnap.empty) {
+          let skillsText = "";
+          skillsSnap.docs.forEach((doc) => {
+            const skillData = doc.data();
+            // Check if it has a title/category and a list
+            // Adjust 'category' and 'items' based on your actual DB keys
+            // Fallback: iterate keys if structure is unknown
+            const category = skillData.category || skillData.title || doc.id;
+            const items =
+              skillData.items || skillData.list || skillData.skills || [];
+
+            if (Array.isArray(items)) {
+              skillsText += `\n--- ${category} ---\n`;
+              skillsText += items.map((item) => ` • ${item}`).join("\n") + "\n";
+            } else {
+              // Fallback for key-value pairs
+              skillsText += `\n--- ${category} ---\n`;
+              Object.entries(skillData).forEach(([k, v]) => {
+                if (k !== "id") skillsText += ` ${k}: ${v}\n`;
+              });
+            }
+          });
+          data["skills"] = skillsText || "No skills data formatted.";
+        } else {
+          data["skills"] = "Skills not found.";
+        }
+
+        // 3. Fetch & Format PERSONAL INFO (About/Contact)
         const personalInfoSnap = await getDocs(collection(db, "personal_info"));
-        const personalInfoDocs = personalInfoSnap.docs.map((doc) => doc.data());
+        if (!personalInfoSnap.empty) {
+          const info = personalInfoSnap.docs[0].data();
 
-        if (personalInfoDocs.length > 0) {
-          const info = personalInfoDocs[0];
-
-          // Format 'about' as a single string so 'echo' works
+          // Format 'about' as a string
           data["about"] = `NAME: ${info.name || "Matthew Nader"}\n\n${
-            info.description || ""
+            info.description || "Full Stack Developer."
           }`;
 
-          // Format 'contact' as a single string
+          // Format 'contact' as a string
           data["contact"] = [
             `Email: ${info.email || "N/A"}`,
             `Phone: ${info.phone || "N/A"}`,
@@ -384,6 +399,7 @@ export default function App() {
             `LinkedIn: ${info.linkedin || "N/A"}`,
           ].join("\n");
         } else {
+          // Fallback to legacy collections if personal_info missing
           data["about"] = "Personal info not found.";
           data["contact"] = "Contact info not found.";
         }
@@ -482,6 +498,7 @@ export default function App() {
 
     const RASTER_SCALE = 0.5;
 
+    // --- RESTORED HELPER FUNCTIONS ---
     function worldToScreenXY(vWorld, camera, canvasRect) {
       const ndc = vWorld.clone().project(camera);
       const x = (ndc.x * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
@@ -683,14 +700,7 @@ export default function App() {
       const rectW = Math.max(2, maxX - minX);
       const rectH = Math.max(2, maxY - minY);
       const localPoints = simplified.map(([x, y]) => [x - minX, y - minY]);
-      const clipPath = contourToClipPathPercent(
-        localPoints,
-        0,
-        0,
-        rectW,
-        rectH,
-      );
-      return clipPath;
+      return contourToClipPathPercent(localPoints, 0, 0, rectW, rectH);
     }
 
     let resizeTimer = null;
@@ -699,28 +709,19 @@ export default function App() {
     const onWindowResize = () => {
       if (mountRef.current) {
         const { clientWidth, clientHeight } = mountRef.current;
-        // Immediate update to minimize visual glitch
+
+        // --- FIX: Immediate Update for Mouse/Visual Sync ---
         camera.aspect = clientWidth / clientHeight;
         camera.updateProjectionMatrix();
         webglRenderer.setSize(clientWidth, clientHeight);
         cssRenderer.setSize(clientWidth, clientHeight);
 
+        // Force CSS Renderer to match WebGL exactly
+        cssRenderer.domElement.style.width = `${clientWidth}px`;
+        cssRenderer.domElement.style.height = `${clientHeight}px`;
+
         if (resizeTimer) clearTimeout(resizeTimer);
-        // Rebuild clip path slightly later to ensure layout settled
-        resizeTimer = setTimeout(() => {
-          // Double check size in case of rapid dragging
-          const { clientWidth: w, clientHeight: h } = mountRef.current;
-          if (
-            w !== webglRenderer.domElement.width ||
-            h !== webglRenderer.domElement.height
-          ) {
-            webglRenderer.setSize(w, h);
-            cssRenderer.setSize(w, h);
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-          }
-          rebuildClipPath();
-        }, 150);
+        resizeTimer = setTimeout(rebuildClipPath, 150);
       }
     };
     window.addEventListener("resize", onWindowResize);
@@ -783,7 +784,7 @@ export default function App() {
       clipMesh.material = new THREE.MeshBasicMaterial({ visible: false });
       scene.add(clipMesh);
 
-      threeObjectsRef.current = { camera, eventPlane };
+      threeObjectsRef.current = { camera, eventPlane, renderer: webglRenderer };
 
       rebuildClipPath = () => {
         const terminalDiv = terminalElRef.current;
@@ -809,10 +810,15 @@ export default function App() {
         );
         const size = screenBox.getSize(new THREE.Vector3());
 
-        // --- FIX 4: Glitch Prevention (Flat TV) ---
         if (size.x === 0 || size.y === 0) return;
 
-        const baseScale = new THREE.Vector3(size.x / termW, size.y / termH, 1);
+        // --- FIX: Safety Scale to prevent "Wider than TV" ---
+        // We multiply by 0.995 to ensure it sits just inside the bezel
+        const baseScale = new THREE.Vector3(
+          (size.x / termW) * 0.995,
+          (size.y / termH) * 0.995,
+          1,
+        );
 
         cssObject.position.copy(basePosition);
         cssObject.quaternion.copy(baseQuaternion);
@@ -835,6 +841,7 @@ export default function App() {
           1,
         );
 
+        // Sync Event Plane for Raycasting
         eventPlane.position.copy(cssObject.position);
         eventPlane.quaternion.copy(cssObject.quaternion);
         eventPlane.scale.set(
@@ -842,6 +849,7 @@ export default function App() {
           size.y * finalParams.scaleY,
           1,
         );
+        eventPlane.updateMatrixWorld();
       }
 
       function updateCornerPositions() {

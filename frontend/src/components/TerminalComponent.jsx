@@ -87,8 +87,7 @@ export const TerminalComponent = forwardRef(
           ? { cols: term.current.cols, rows: term.current.rows }
           : null,
 
-      // --- FIX 3: Scrolling Support (Add viewportY) ---
-      // This ensures selection works on the visible text when scrolled down.
+      // --- FIX: Scrolling Support (Add viewportY) ---
       select: (col, row, length) => {
         if (!term.current) return;
         const buffer = term.current.buffer.active;
@@ -228,6 +227,7 @@ export const TerminalComponent = forwardRef(
         term.current.writeln("Type 'help' for a list of commands.");
         term.current.writeln("Type 'debug mouse' to toggle mouse debugging.");
         term.current.writeln("Links are now fully functional:");
+        // --- FIX: Removed GitHub Link ---
         term.current.writeln(" - https://www.google.com");
         term.current.write("> ");
 
