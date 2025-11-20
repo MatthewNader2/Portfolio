@@ -86,73 +86,81 @@ export const TerminalComponent = forwardRef(
         term.current
           ? { cols: term.current.cols, rows: term.current.rows }
           : null,
-      select: (col, row, length) => term.current?.select(col, row, length),
+
+      // --- FIX 3: Scrolling Support (Add viewportY) ---
+      // This ensures selection works on the visible text when scrolled down.
+      select: (col, row, length) => {
+        if (!term.current) return;
+        const buffer = term.current.buffer.active;
+        const actualRow = row + buffer.viewportY;
+        term.current.select(col, actualRow, length);
+      },
+
       clearSelection: () => term.current?.clearSelection(),
       getSelection: () => term.current?.getSelection(),
 
-      // --- FIX 3: Refined selectWordAt logic (Precision) ---
       selectWordAt: (col, row) => {
         if (!term.current) return;
-        const line = term.current.buffer.active.getLine(row);
+        const buffer = term.current.buffer.active;
+        const actualRow = row + buffer.viewportY;
+
+        const line = buffer.getLine(actualRow);
         if (!line) return;
 
-        // Use translateToString(false) to preserve layout
         const str = line.translateToString(false);
 
-        // Safety check: if clicked on empty space, do nothing
         if (!str[col] || str[col] === " ") return;
 
         let start = col;
         let end = col;
 
-        // Scan Left: Stop at space or start of line
         while (start > 0) {
           const char = str[start - 1];
           if (!char || char === " ") break;
           start--;
         }
 
-        // Scan Right: Stop at space or end of line
         while (end < str.length) {
           const char = str[end];
           if (!char || char === " ") break;
           end++;
         }
 
-        term.current.select(start, row, end - start);
+        term.current.select(start, actualRow, end - start);
       },
 
       selectLineAt: (row) => {
         if (!term.current) return;
-        term.current.select(0, row, term.current.cols);
+        const buffer = term.current.buffer.active;
+        const actualRow = row + buffer.viewportY;
+        term.current.select(0, actualRow, term.current.cols);
       },
 
       paste: (text) => handleInputText(text),
 
       getChar: (col, row) => {
-        const line = term.current?.buffer.active.getLine(row);
+        const buffer = term.current?.buffer.active;
+        if (!buffer) return null;
+        const actualRow = row + buffer.viewportY;
+        const line = buffer.getLine(actualRow);
         return line?.getCell(col)?.getChars() || null;
       },
 
       getLinkAt: (col, row) => {
         if (!term.current) return null;
-        // Access the buffer directly
         const buffer = term.current.buffer.active;
-        const line = buffer.getLine(row);
+        const actualRow = row + buffer.viewportY;
+
+        const line = buffer.getLine(actualRow);
         if (!line) return null;
 
-        // Translate line to string
         const lineStr = line.translateToString(true);
-
-        // Regex to find HTTP/HTTPS URLs
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         let match;
 
         while ((match = urlRegex.exec(lineStr)) !== null) {
           const start = match.index;
           const end = start + match[0].length;
-
-          // Check if the mouse column is strictly within the link bounds
           if (col >= start && col < end) {
             return match[0];
           }
@@ -171,7 +179,6 @@ export const TerminalComponent = forwardRef(
         const completionSound = new Audio("/assets/bell.oga");
         completionSound.volume = 0.8;
 
-        // --- FIX 2: High Contrast Selection Theme ---
         term.current = new Terminal({
           fontFamily: '"Pixelmix", monospace',
           fontSize: 16,
@@ -180,39 +187,30 @@ export const TerminalComponent = forwardRef(
             background: "rgba(0, 0, 0, 0)",
             foreground: "#00ff00",
             cursor: "#00ff00",
-            selectionBackground: "#00ff00", // Bright Green background
-            selectionForeground: "#000000", // Black text (ensures readability)
+            selectionBackground: "#00ff00",
+            selectionForeground: "#000000",
           },
           allowTransparency: true,
         });
 
         term.current.loadAddon(fitAddon.current);
         term.current.open(terminalContainerRef.current);
-        term.current.focus(); // Ensure focus for shortcuts
+        term.current.focus();
 
-        // --- Custom Key Handler for Shortcuts ---
         term.current.attachCustomKeyEventHandler((arg) => {
-          // Only handle keydown
           if (arg.type !== "keydown") return true;
-
-          // CTRL+C: Copy if selection exists, else Interrupt
           if (arg.ctrlKey && arg.key === "c") {
             const selection = term.current.getSelection();
             if (selection) {
-              // Use navigator.clipboard.writeText for programmatic copy
               navigator.clipboard.writeText(selection);
-              return false; // Prevent Xterm from handling (blocking ^C)
+              return false;
             }
-            // If no selection, let Xterm handle (sending ^C interrupt)
             return true;
           }
-
-          // CTRL+V or Shift+Insert: Paste
           if (
             (arg.ctrlKey && arg.key === "v") ||
             (arg.shiftKey && arg.key === "Insert")
           ) {
-            // Use navigator.clipboard.readText for programmatic paste
             navigator.clipboard
               .readText()
               .then((text) => {
@@ -221,25 +219,21 @@ export const TerminalComponent = forwardRef(
               .catch((err) => {
                 console.error("Paste failed:", err);
               });
-            return false; // Prevent Xterm default
+            return false;
           }
-
-          return true; // Allow other keys
+          return true;
         });
 
         term.current.writeln("Welcome to Matthew's Interactive Portfolio!");
         term.current.writeln("Type 'help' for a list of commands.");
         term.current.writeln("Type 'debug mouse' to toggle mouse debugging.");
         term.current.writeln("Links are now fully functional:");
-        term.current.writeln(" - https://github.com/matthewmiglio");
         term.current.writeln(" - https://www.google.com");
         term.current.write("> ");
 
-        // Fit after initial content is written
         fitAddon.current.fit();
 
         term.current.onKey(({ key, domEvent }) => {
-          // Ignore keys with modifiers (handled by custom handler or browser)
           if (domEvent.ctrlKey || domEvent.altKey || domEvent.metaKey) return;
 
           const s = state.current;
@@ -344,7 +338,6 @@ export const TerminalComponent = forwardRef(
       }
     }, [onCommand]);
 
-    // Debug pointer useEffect
     useEffect(() => {
       const target = term.current?.element.querySelector(".xterm-viewport");
       if (!target) return;
@@ -375,7 +368,6 @@ export const TerminalComponent = forwardRef(
           bluePointerRef.current.style.display = "none";
         if (yellowPointerRef.current)
           yellowPointerRef.current.style.display = "none";
-        // Cleanup if moving from debug ON to OFF
         if (bluePointerRef.current) bluePointerRef.current.remove();
         if (yellowPointerRef.current) yellowPointerRef.current.remove();
         bluePointerRef.current = null;

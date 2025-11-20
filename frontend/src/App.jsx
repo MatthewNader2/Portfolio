@@ -1,7 +1,7 @@
 // --- START OF FILE App.jsx ---
 
 import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom"; // IMPORT THIS
+import { createPortal } from "react-dom";
 import * as THREE from "three";
 import { WebGLRenderer } from "three";
 import {
@@ -32,13 +32,13 @@ export default function App() {
   const [loadingStatus, setLoadingStatus] = useState("Booting system...");
   const [mouseDebug, setMouseDebug] = useState(false);
 
-  // --- NEW: Context Menu State ---
-  const [contextMenu, setContextMenu] = useState(null); // { x, y } or null
+  // --- Context Menu State ---
+  const [contextMenu, setContextMenu] = useState(null);
 
-  // --- Refs for 3D objects and DOM markers ---
+  // --- Refs for 3D objects ---
   const threeObjectsRef = useRef({ camera: null, eventPlane: null });
 
-  // These corners are no longer used for mouse calculation, but kept for structure
+  // Corners (kept for structure/debug)
   const cornerTlRef = useRef(null);
   const cornerTrRef = useRef(null);
   const cornerBlRef = useRef(null);
@@ -51,13 +51,12 @@ export default function App() {
   });
 
   // --- POINTERS ---
-  const redPointerRef = useRef(null); // Corrected 3D coords
-  const greenPointerRef = useRef(null); // Raw window coords
+  const redPointerRef = useRef(null);
+  const greenPointerRef = useRef(null);
 
   const isDraggingOnTerminal = useRef(false);
-  // Store selection state
-  const selectionStartRef = useRef(null); // { col, row }
-  const hoveredLinkRef = useRef(null); // Store the URL if hovering over one
+  const selectionStartRef = useRef(null);
+  const hoveredLinkRef = useRef(null);
 
   // --- CONTEXT MENU ACTIONS ---
   const handleCopy = async () => {
@@ -78,15 +77,12 @@ export default function App() {
     setContextMenu(null);
   };
 
-  // --- CONTEXT MENU HANDLER ---
   const handleContextMenu = (event) => {
-    event.preventDefault(); // Block default browser menu
+    event.preventDefault();
     setContextMenu({ x: event.clientX, y: event.clientY });
   };
 
-  // --- TERMINAL COMMAND HANDLER (Moved up to be a simple const function) ---
   const handleTerminalCommand = (command) => {
-    // --- DEBUG LOGGING ---
     if (!wasmEngine || !portfolioDataString || !terminalComponentRef.current) {
       console.warn("Command blocked. System status:", {
         wasmEngine: !!wasmEngine,
@@ -129,16 +125,25 @@ export default function App() {
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // --- FIX 3: Updated Coordinate Calculation (Use Container Dimensions) ---
     const getTermCoords = (event) => {
       const { camera, eventPlane } = threeObjectsRef.current;
-      // Use the container (mountRef) dimensions, NOT window dimensions
       const container = mountRef.current;
       if (!camera || !eventPlane || !container) return null;
 
       const { clientWidth, clientHeight } = container;
 
-      // Get mouse position relative to the container
+      // --- FIX 1: Just-In-Time Camera Correction ---
+      // Forces the camera to match the current container size exactly.
+      // This fixes the "shift" when DevTools opens or window resizes.
+      const currentAspect = clientWidth / clientHeight;
+      if (Math.abs(camera.aspect - currentAspect) > 0.001) {
+        camera.aspect = currentAspect;
+        camera.updateProjectionMatrix();
+      }
+
+      // Ensure the plane matrix is up to date for raycasting
+      eventPlane.updateMatrixWorld();
+
       const rect = container.getBoundingClientRect();
       const offsetX = event.clientX - rect.left;
       const offsetY = event.clientY - rect.top;
@@ -146,7 +151,6 @@ export default function App() {
       const mouse = new THREE.Vector2();
       const raycaster = new THREE.Raycaster();
 
-      // Calculate Normalized Device Coordinates (NDC) based on container size
       mouse.x = (offsetX / clientWidth) * 2 - 1;
       mouse.y = -(offsetY / clientHeight) * 2 + 1;
 
@@ -188,30 +192,23 @@ export default function App() {
           const point = intersects[0].point.clone();
           point.project(camera);
           redPointerRef.current.style.display = "block";
-          redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * window.innerWidth}px`;
-          redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * window.innerHeight}px`;
-        }
-
-        if (greenPointerRef.current) {
-          greenPointerRef.current.style.display = "none";
+          redPointerRef.current.style.left = `${
+            (point.x * 0.5 + 0.5) * window.innerWidth
+          }px`;
+          redPointerRef.current.style.top = `${
+            -(point.y * 0.5 - 0.5) * window.innerHeight
+          }px`;
         }
       }
 
       return { col, row, dims };
     };
 
-    // --- MOUSE HANDLERS ---
-
     const handleMouseDown = (event) => {
       if (event.isSynthetic) return;
-
-      // Close context menu on any click
       if (contextMenu) setContextMenu(null);
-
-      // Only Left Click (0) starts selection
       if (event.button !== 0) return;
 
-      // Double Click (Word)
       if (event.detail === 2) {
         const coords = getTermCoords(event);
         if (coords) {
@@ -220,7 +217,6 @@ export default function App() {
           return;
         }
       }
-      // Triple Click (Line)
       if (event.detail === 3) {
         const coords = getTermCoords(event);
         if (coords) {
@@ -240,13 +236,10 @@ export default function App() {
 
     const handleMouseMove = (event) => {
       if (event.isSynthetic) return;
-
-      // Stop processing if Context Menu is open
       if (contextMenu) return;
 
       const coords = getTermCoords(event);
 
-      // --- CURSOR & VISUAL FIX ---
       if (coords) {
         const link = terminalComponentRef.current?.getLinkAt(
           coords.col,
@@ -254,45 +247,32 @@ export default function App() {
         );
 
         if (link) {
-          // 1. Force Browser Cursor
           document.body.classList.add("force-pointer");
           document.body.classList.remove("force-text");
-
-          // 2. Visual Feedback: Turn Red Pointer to CYAN/BLUE
           if (redPointerRef.current) {
-            redPointerRef.current.style.backgroundColor = "#00ffff"; // Cyan/Blue
+            redPointerRef.current.style.backgroundColor = "#00ffff";
             redPointerRef.current.style.boxShadow = "0 0 10px #00ffff";
           }
-
           hoveredLinkRef.current = link;
         } else {
-          // 1. Force Text Cursor
           document.body.classList.remove("force-pointer");
           document.body.classList.add("force-text");
-
-          // 2. Reset Pointer Color
           if (redPointerRef.current) {
             redPointerRef.current.style.backgroundColor = "red";
             redPointerRef.current.style.boxShadow = "none";
           }
-
           hoveredLinkRef.current = null;
         }
       } else {
-        // Reset everything if not on terminal
         document.body.classList.remove("force-pointer");
         document.body.classList.remove("force-text");
-
         if (redPointerRef.current) {
           redPointerRef.current.style.backgroundColor = "red";
           redPointerRef.current.style.boxShadow = "none";
         }
-
         hoveredLinkRef.current = null;
       }
-      // --- CURSOR & VISUAL FIX END ---
 
-      // Drag Selection
       if (isDraggingOnTerminal.current && coords && selectionStartRef.current) {
         const start = selectionStartRef.current;
         const end = coords;
@@ -318,8 +298,6 @@ export default function App() {
     const handleMouseUp = (event) => {
       if (event.isSynthetic) return;
 
-      // --- LINK CLICK HANDLING ---
-      // Check if it was a simple click (start and end coords are the same)
       const isClick =
         selectionStartRef.current &&
         getTermCoords(event)?.col === selectionStartRef.current.col &&
@@ -332,8 +310,6 @@ export default function App() {
       isDraggingOnTerminal.current = false;
       selectionStartRef.current = null;
       if (redPointerRef.current) redPointerRef.current.style.display = "none";
-      if (greenPointerRef.current)
-        greenPointerRef.current.style.display = "none";
     };
 
     const mount = mountRef.current;
@@ -351,7 +327,6 @@ export default function App() {
   }, [mouseDebug, contextMenu]);
 
   useEffect(() => {
-    // --- FIX 4: Update initialize function with console.log ---
     const initialize = async () => {
       try {
         setLoadingStatus("Loading command interpreter...");
@@ -364,17 +339,18 @@ export default function App() {
         setWasmEngine({ processCommand });
 
         setLoadingStatus("Contacting database...");
+
+        // --- FIX 2: Data Loading for 'echo about' and 'echo contact' ---
         const collectionsToFetch = [
-          "about",
           "projects",
           "skills",
           "experience",
           "education",
-          "contact",
           "awards",
         ];
         const data = {};
 
+        // 1. Fetch Array Collections (projects, etc.)
         for (const collName of collectionsToFetch) {
           const querySnapshot = await getDocs(collection(db, collName));
           const docs = querySnapshot.docs.map((doc) => ({
@@ -383,26 +359,39 @@ export default function App() {
           }));
           if (docs.length === 0) {
             data[collName] = `Content for ${collName} not found.`;
-          } else if (
-            collName === "projects" ||
-            collName === "experience" ||
-            collName === "awards"
-          ) {
-            data[collName] = docs;
           } else {
-            // Singular collections (about, contact, etc.)
-            data[collName] = docs[0];
+            data[collName] = docs;
           }
         }
 
-        // --- DEBUGGING: Check what we are sending to WASM ---
-        console.log("Loaded Portfolio Data:", data);
+        // 2. Fetch Personal Info & Convert to STRING for the Terminal
+        const personalInfoSnap = await getDocs(collection(db, "personal_info"));
+        const personalInfoDocs = personalInfoSnap.docs.map((doc) => doc.data());
 
+        if (personalInfoDocs.length > 0) {
+          const info = personalInfoDocs[0];
+
+          // Format 'about' as a single string so 'echo' works
+          data["about"] = `NAME: ${info.name || "Matthew Nader"}\n\n${
+            info.description || ""
+          }`;
+
+          // Format 'contact' as a single string
+          data["contact"] = [
+            `Email: ${info.email || "N/A"}`,
+            `Phone: ${info.phone || "N/A"}`,
+            `GitHub: ${info.github || "N/A"}`,
+            `LinkedIn: ${info.linkedin || "N/A"}`,
+          ].join("\n");
+        } else {
+          data["about"] = "Personal info not found.";
+          data["contact"] = "Contact info not found.";
+        }
+
+        console.log("Loaded Portfolio Data:", data);
         setPortfolioData(data);
         const jsonString = JSON.stringify(data);
         setPortfolioDataString(jsonString);
-
-        // MOVED HERE: Only say ready if we succeeded
         setLoadingStatus("Ready.");
       } catch (error) {
         console.error("Initialization failed:", error);
@@ -499,6 +488,7 @@ export default function App() {
       const y = (-ndc.y * 0.5 + 0.5) * canvasRect.height + canvasRect.top;
       return [x, y];
     }
+
     function traceBoundary(imgData, w, h) {
       let start = -1;
       for (let i = 0; i < w * h; i++) {
@@ -550,6 +540,7 @@ export default function App() {
       } while (!(cx === sx && cy === sy));
       return contour;
     }
+
     function simplifyRDP(points, epsilon) {
       if (points.length < 3) return points.slice();
       const sqr = (a) => a * a;
@@ -589,6 +580,7 @@ export default function App() {
       result.push(points[points.length - 1]);
       return result;
     }
+
     function contourToClipPathPercent(
       contour,
       rectLeft,
@@ -604,6 +596,7 @@ export default function App() {
       });
       return `polygon(${pts.join(", ")})`;
     }
+
     function rasterizeProjectedTriangles(projectedTris, canvasW, canvasH) {
       const canvas = document.createElement("canvas");
       canvas.width = canvasW;
@@ -626,6 +619,7 @@ export default function App() {
       }
       return { mask };
     }
+
     function buildClipPathFromMesh(meshToProject) {
       meshToProject.updateWorldMatrix(true, false);
       const geom = meshToProject.geometry;
@@ -645,7 +639,8 @@ export default function App() {
         const c = new THREE.Vector3().fromBufferAttribute(posAttr, ic);
         meshToProject.localToWorld(a);
         meshToProject.localToWorld(b);
-        meshToWorld(c);
+        meshToProject.localToWorld(c);
+
         projectedTris.push([
           worldToScreenXY(a, camera, canvasRect),
           worldToScreenXY(b, camera, canvasRect),
@@ -700,15 +695,32 @@ export default function App() {
 
     let resizeTimer = null;
     let rebuildClipPath = () => {};
+
     const onWindowResize = () => {
       if (mountRef.current) {
         const { clientWidth, clientHeight } = mountRef.current;
+        // Immediate update to minimize visual glitch
         camera.aspect = clientWidth / clientHeight;
         camera.updateProjectionMatrix();
         webglRenderer.setSize(clientWidth, clientHeight);
         cssRenderer.setSize(clientWidth, clientHeight);
+
         if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(rebuildClipPath, 150);
+        // Rebuild clip path slightly later to ensure layout settled
+        resizeTimer = setTimeout(() => {
+          // Double check size in case of rapid dragging
+          const { clientWidth: w, clientHeight: h } = mountRef.current;
+          if (
+            w !== webglRenderer.domElement.width ||
+            h !== webglRenderer.domElement.height
+          ) {
+            webglRenderer.setSize(w, h);
+            cssRenderer.setSize(w, h);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+          }
+          rebuildClipPath();
+        }, 150);
       }
     };
     window.addEventListener("resize", onWindowResize);
@@ -786,6 +798,9 @@ export default function App() {
       function updateTerminalTransform() {
         const termW = 1024,
           termH = 768;
+
+        if (!screenMesh || !screenMesh.geometry) return;
+
         screenMesh.updateWorldMatrix(true, false);
         const screenBox = new THREE.Box3().setFromObject(screenMesh);
         const basePosition = screenBox.getCenter(new THREE.Vector3());
@@ -793,6 +808,10 @@ export default function App() {
           new THREE.Quaternion(),
         );
         const size = screenBox.getSize(new THREE.Vector3());
+
+        // --- FIX 4: Glitch Prevention (Flat TV) ---
+        if (size.x === 0 || size.y === 0) return;
+
         const baseScale = new THREE.Vector3(size.x / termW, size.y / termH, 1);
 
         cssObject.position.copy(basePosition);
@@ -875,10 +894,8 @@ export default function App() {
         height: "100%",
         position: "relative",
         touchAction: "none",
-        // IMPORTANT: Do NOT add cursor: "auto" here.
       }}
     >
-      {/* --- POINTERS --- */}
       <div
         ref={redPointerRef}
         style={{
@@ -908,7 +925,6 @@ export default function App() {
         }}
       />
 
-      {/* --- CRASH FIX: Use Portal for Context Menu --- */}
       {contextMenu &&
         createPortal(
           <div
@@ -921,12 +937,12 @@ export default function App() {
               color: "#00ff00",
               fontFamily: '"Pixelmix", monospace',
               fontSize: "14px",
-              zIndex: 100000, // Very high z-index
+              zIndex: 100000,
               padding: "5px 0",
               boxShadow: "0 0 15px rgba(0, 255, 0, 0.4)",
               minWidth: "120px",
             }}
-            onContextMenu={(e) => e.preventDefault()} // Prevent default inside custom menu
+            onContextMenu={(e) => e.preventDefault()}
           >
             <div
               style={{
@@ -961,7 +977,7 @@ export default function App() {
               Paste
             </div>
           </div>,
-          document.body, // Render directly to body
+          document.body,
         )}
 
       <div
@@ -978,7 +994,6 @@ export default function App() {
           left: 0,
         }}
       >
-        {/* Corners for Debugging */}
         <div
           ref={cornerTlRef}
           style={{ position: "absolute", top: 0, left: 0, width: 1, height: 1 }}
