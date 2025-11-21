@@ -13,11 +13,126 @@ import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import Stats from "stats.js";
 
-// --- Project-specific Imports ---
+// --- Firebase ---
 import { db } from "./firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 import { TerminalComponent } from "./components/TerminalComponent";
 import backgroundUrl from "./assets/background.jpg";
+
+// --- GLOBAL CACHE ---
+const ASCII_CACHE = {
+  profile: "",
+  icons: {}
+};
+
+// --- CONFIGURATION ---
+const TERMINAL_COLS = 65;
+
+// --- HELPER: Robust Text Wrapper ---
+const wrapText = (text, maxWidth) => {
+  if (!text) return "";
+  // 1. Split into paragraphs first to preserve user-intended newlines
+  const paragraphs = text.split(/\r?\n/);
+
+  return paragraphs.map(para => {
+      if (!para.trim()) return ""; // Preserve empty lines
+
+      const words = para.trim().split(/\s+/);
+      let lines = [];
+      let currentLine = words[0];
+
+      for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        // Check if adding the word exceeds width
+        if (currentLine.length + 1 + word.length <= maxWidth) {
+          currentLine += " " + word;
+        } else {
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      lines.push(currentLine);
+      return lines.join("\n");
+  }).join("\n");
+};
+
+// --- HELPER: High-Fidelity ASCII Generator (No Blocks) ---
+const generateAsciiArt = (imageUrl, width = 60) => {
+  return new Promise((resolve) => {
+    if (!imageUrl) return resolve("");
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imageUrl;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // 0.5 aspect ratio correction
+      const height = (img.height / img.width) * width * 0.5;
+      canvas.width = width;
+      canvas.height = height;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, width, height);
+
+      try {
+        const data = ctx.getImageData(0, 0, width, height).data;
+
+        // Dense Ramp for EVERYTHING (Icons & Profile) - No Blocks
+        const chars = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
+
+        let ascii = "";
+        for (let y = 0; y < canvas.height; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            const offset = (y * canvas.width + x) * 4;
+            const r = data[offset];
+            const g = data[offset + 1];
+            const b = data[offset + 2];
+            const alpha = data[offset + 3];
+
+            if (alpha < 20) { ascii += " "; continue; }
+
+            const avg = (r + g + b) / 3;
+            // Invert index for this specific ramp (Dark -> Light)
+            const charIndex = Math.floor((avg / 255) * (chars.length - 1));
+            const char = chars[chars.length - 1 - charIndex] || ".";
+
+            // TrueColor ANSI
+            ascii += `\x1b[38;2;${r};${g};${b}m${char}`;
+          }
+          ascii += "\x1b[0m\n";
+        }
+        resolve(ascii);
+      } catch (e) { resolve(""); }
+    };
+    img.onerror = () => resolve("");
+  });
+};
+
+// --- FALLBACK ICON MAP ---
+const FALLBACK_ICONS = {
+  "c++": "https://cdn.simpleicons.org/cplusplus/00599C",
+  "matlab": "https://cdn.simpleicons.org/matlab/0076A8",
+  "c#": "https://cdn.simpleicons.org/csharp/239120",
+  "three.js": "https://cdn.simpleicons.org/threedotjs/FFFFFF",
+  "react": "https://cdn.simpleicons.org/react/61DAFB",
+  "python": "https://cdn.simpleicons.org/python/3776AB",
+  "javascript": "https://cdn.simpleicons.org/javascript/F7DF1E",
+  "linux": "https://cdn.simpleicons.org/linux/FCC624",
+  "git": "https://cdn.simpleicons.org/git/F05032",
+  "docker": "https://cdn.simpleicons.org/docker/2496ED",
+  "firebase": "https://cdn.simpleicons.org/firebase/FFCA28",
+  "arduino": "https://cdn.simpleicons.org/arduino/00979D",
+  "unity": "https://cdn.simpleicons.org/unity/FFFFFF",
+  "opencv": "https://cdn.simpleicons.org/opencv/5C3EE8",
+  "pytorch": "https://cdn.simpleicons.org/pytorch/EE4C2C",
+  "flask": "https://cdn.simpleicons.org/flask/FFFFFF",
+  "bash": "https://cdn.simpleicons.org/gnu-bash/FFFFFF",
+  "rust": "https://cdn.simpleicons.org/rust/FFFFFF",
+  "tailwindcss": "https://cdn.simpleicons.org/tailwindcss/06B6D4",
+  "dotnet": "https://cdn.simpleicons.org/dotnet/512BD4"
+};
 
 export default function App() {
   const mountRef = useRef(null);
@@ -26,7 +141,6 @@ export default function App() {
 
   // --- State Management ---
   const [wasmEngine, setWasmEngine] = useState(null);
-  const [portfolioData, setPortfolioData] = useState(null);
   const [portfolioDataString, setPortfolioDataString] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStatus, setLoadingStatus] = useState("Booting system...");
@@ -47,12 +161,6 @@ export default function App() {
   const cornerTrRef = useRef(null);
   const cornerBlRef = useRef(null);
   const cornerBrRef = useRef(null);
-  const screenCornersRef = useRef({
-    tl: { x: 0, y: 0 },
-    tr: { x: 0, y: 0 },
-    bl: { x: 0, y: 0 },
-    br: { x: 0, y: 0 },
-  });
 
   // --- POINTERS ---
   const redPointerRef = useRef(null);
@@ -86,6 +194,7 @@ export default function App() {
     setContextMenu({ x: event.clientX, y: event.clientY });
   };
 
+  // --- COMMAND HANDLER (With Placeholder Replacement) ---
   const handleTerminalCommand = (command) => {
     if (!wasmEngine || !portfolioDataString || !terminalComponentRef.current) {
       terminalComponentRef.current?.write("\r\nSystem not ready. Please wait.");
@@ -109,13 +218,27 @@ export default function App() {
       terminalComponentRef.current.prompt();
       return;
     }
-    const result = wasmEngine.processCommand(
-      trimmedCommand,
-      portfolioDataString,
-    );
+
+    // 1. Run C++ Engine
+    let result = wasmEngine.processCommand(trimmedCommand, portfolioDataString);
+
     if (result === "COMMAND_CLEAR") {
       terminalComponentRef.current.clear();
     } else {
+      // 2. INJECT HEAVY ASSETS (Fixes Memory Crash)
+      // We stored "[[PROFILE_ART]]" in the JSON sent to C++.
+      // Now we replace it with the actual 50KB string stored in JS.
+      if (result.includes("[[PROFILE_ART]]")) {
+        result = result.replace("[[PROFILE_ART]]", ASCII_CACHE.profile);
+      }
+
+      // 3. Inject Skill Icons
+      // We look for patterns like [[ICON:python]] and replace them
+      result = result.replace(/\[\[ICON:(.*?)\]\]/g, (match, skillKey) => {
+        // The skillKey in the placeholder is lowercased
+        return ASCII_CACHE.icons[skillKey] || "";
+      });
+
       terminalComponentRef.current.write(result);
       terminalComponentRef.current.prompt();
     }
@@ -125,77 +248,75 @@ export default function App() {
     if (!mountRef.current) return;
 
     const getTermCoords = (event) => {
-      const { camera, eventPlane } = threeObjectsRef.current;
-      const container = mountRef.current;
-      if (!camera || !eventPlane || !container) return null;
+          const { camera, eventPlane } = threeObjectsRef.current;
+          const container = mountRef.current;
+          if (!camera || !eventPlane || !container) return null;
 
-      const { clientWidth, clientHeight } = container;
+          const { clientWidth, clientHeight } = container;
 
-      // --- JIT Camera Correction (Fixes Shift on Resize/DevTools) ---
-      const currentAspect = clientWidth / clientHeight;
-      if (Math.abs(camera.aspect - currentAspect) > 0.001) {
-        camera.aspect = currentAspect;
-        camera.updateProjectionMatrix();
-      }
+          // Ensure matrix is fresh for raycasting
+          eventPlane.updateMatrixWorld();
 
-      // Ensure matrix is fresh for raycasting
-      eventPlane.updateMatrixWorld();
+          const rect = container.getBoundingClientRect();
+          const offsetX = event.clientX - rect.left;
+          const offsetY = event.clientY - rect.top;
 
-      const rect = container.getBoundingClientRect();
-      const offsetX = event.clientX - rect.left;
-      const offsetY = event.clientY - rect.top;
+          const mouse = new THREE.Vector2();
+          const raycaster = new THREE.Raycaster();
 
-      const mouse = new THREE.Vector2();
-      const raycaster = new THREE.Raycaster();
+          // Calculate Normalized Device Coordinates
+          mouse.x = (offsetX / clientWidth) * 2 - 1;
+          mouse.y = -(offsetY / clientHeight) * 2 + 1;
 
-      mouse.x = (offsetX / clientWidth) * 2 - 1;
-      mouse.y = -(offsetY / clientHeight) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObject(eventPlane);
 
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObject(eventPlane);
+          if (intersects.length === 0) {
+            if (redPointerRef.current) redPointerRef.current.style.display = "none";
+            return null;
+          }
 
-      if (intersects.length === 0) {
-        if (redPointerRef.current) redPointerRef.current.style.display = "none";
-        return null;
-      }
+          const uv = intersects[0].uv;
+          const PADDING = 50;
+          const TERM_WIDTH = 1024;
+          const TERM_HEIGHT = 768;
 
-      const uv = intersects[0].uv;
-      const PADDING = 50;
-      const TERM_WIDTH = 1024;
-      const TERM_HEIGHT = 768;
+          const localX = uv.x * TERM_WIDTH;
+          const localY = (1 - uv.y) * TERM_HEIGHT;
 
-      const localX = uv.x * TERM_WIDTH;
-      const localY = (1 - uv.y) * TERM_HEIGHT;
+          const dims = terminalComponentRef.current?.getDimensions();
+          if (!dims) return null;
 
-      const dims = terminalComponentRef.current?.getDimensions();
-      if (!dims) return null;
+          const contentWidth = TERM_WIDTH - PADDING * 2;
+          const contentHeight = TERM_HEIGHT - PADDING * 2;
 
-      const contentWidth = TERM_WIDTH - PADDING * 2;
-      const contentHeight = TERM_HEIGHT - PADDING * 2;
-      const cellWidth = contentWidth / dims.cols;
-      const cellHeight = contentHeight / dims.rows;
+          // If fit() hasn't run correctly, dims.cols might be wrong, causing the drift.
+          // The fix in onWindowResize ensures dims.cols is accurate to the visual state.
+          const cellWidth = contentWidth / dims.cols;
+          const cellHeight = contentHeight / dims.rows;
 
-      // +0.5 Centering Fix
-      let col = Math.floor((localX - PADDING) / cellWidth + 0.5);
-      let row = Math.floor((localY - PADDING) / cellHeight);
+          // +0.5 Centering Fix
+          let col = Math.floor((localX - PADDING) / cellWidth + 0.5);
+          let row = Math.floor((localY - PADDING) / cellHeight);
 
-      col = Math.max(0, Math.min(col, dims.cols - 1));
-      row = Math.max(0, Math.min(row, dims.rows - 1));
+          col = Math.max(0, Math.min(col, dims.cols - 1));
+          row = Math.max(0, Math.min(row, dims.rows - 1));
 
-      if (mouseDebug) {
-        const char = terminalComponentRef.current?.getChar(col, row);
-        console.log(`Hover: [${col}, ${row}] "${char}"`);
-        if (redPointerRef.current) {
-          const point = intersects[0].point.clone();
-          point.project(camera);
-          redPointerRef.current.style.display = "block";
-          redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * clientWidth}px`;
-          redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * clientHeight}px`;
-        }
-      }
+          // ... (Debug logic remains the same) ...
+          if (mouseDebug) {
+            const char = terminalComponentRef.current?.getChar(col, row);
+            console.log(`Hover: [${col}, ${row}] "${char}"`);
+            if (redPointerRef.current) {
+              const point = intersects[0].point.clone();
+              point.project(camera);
+              redPointerRef.current.style.display = "block";
+              redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * clientWidth}px`;
+              redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * clientHeight}px`;
+            }
+          }
 
-      return { col, row, dims };
-    };
+          return { col, row, dims };
+        };
 
     const handleMouseDown = (event) => {
       if (event.isSynthetic) return;
@@ -325,89 +446,156 @@ export default function App() {
         setLoadingStatus("Loading command interpreter...");
         const WasmModule = await import("./wasm/engine.js");
         const engine = await WasmModule.default();
-        const processCommand = engine.cwrap("process_command", "string", [
-          "string",
-          "string",
-        ]);
+        const processCommand = engine.cwrap("process_command", "string", ["string", "string"]);
         setWasmEngine({ processCommand });
 
         setLoadingStatus("Contacting database...");
 
+        // 1. Prepare Icon Map (Merge Firebase + Fallback)
+        const iconsSnap = await getDocs(collection(db, "skill_icons"));
+        let iconMap = { ...FALLBACK_ICONS };
+        if (!iconsSnap.empty) {
+            iconsSnap.docs.forEach(doc => {
+                const d = doc.data();
+                Object.keys(d).forEach(key => {
+                    if (typeof d[key] === 'string' && d[key].startsWith('http')) {
+                        iconMap[key.toLowerCase()] = d[key];
+                    }
+                });
+            });
+        }
+
+        // 2. Fetch Data
+        const projectsSnap = await getDocs(collection(db, "projects"));
+        const experienceSnap = await getDocs(collection(db, "experience"));
+        const educationSnap = await getDocs(collection(db, "education"));
+        const awardsSnap = await getDocs(collection(db, "awards"));
+        const skillsSnap = await getDocs(collection(db, "skills"));
+        const personalInfoSnap = await getDocs(collection(db, "personal_info"));
+
+        const info = !personalInfoSnap.empty ? personalInfoSnap.docs[0].data() : {};
+
+        // 3. Generate Profile Art (High Detail Mode)
+        if (info.profile_picture_url) {
+             setLoadingStatus("Generating neural visual...");
+             // Increased width to 70 for better detail
+             ASCII_CACHE.profile = await generateAsciiArt(info.profile_picture_url, 70);
+        }
+
         const data = {};
 
-        // 1. Fetch Projects, Experience, Education, Awards (Arrays)
-        const arrayCollections = [
-          "projects",
-          "experience",
-          "education",
-          "awards",
-        ];
-        for (const collName of arrayCollections) {
-          const querySnapshot = await getDocs(collection(db, collName));
-          const docs = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          data[collName] =
-            docs.length > 0 ? docs : `Content for ${collName} not found.`;
-        }
+        // --- ABOUT ---
+        const aboutDesc = wrapText(info.description || "Full Stack Developer.", TERMINAL_COLS);
+        data["about"] = {
+            content: `\n[[PROFILE_ART]]\nNAME: ${info.name || "Matthew Nader"}\n\n${aboutDesc}`
+        };
 
-        // 2. Fetch & Format SKILLS (Fixing empty output)
-        const skillsSnap = await getDocs(collection(db, "skills"));
-        if (!skillsSnap.empty) {
-          let skillsText = "";
-          skillsSnap.docs.forEach((doc) => {
-            const skillData = doc.data();
-            // Check if it has a title/category and a list
-            // Adjust 'category' and 'items' based on your actual DB keys
-            // Fallback: iterate keys if structure is unknown
-            const category = skillData.category || skillData.title || doc.id;
-            const items =
-              skillData.items || skillData.list || skillData.skills || [];
+        // --- CONTACT ---
+        const formatLink = (link) => {
+            if (!link || link === "N/A") return "N/A";
+            // Remove existing protocol if present to avoid double https://
+            const clean = link.replace(/^https?:\/\//, '');
+            return `https://${clean}`;
+        };
 
-            if (Array.isArray(items)) {
-              skillsText += `\n--- ${category} ---\n`;
-              skillsText += items.map((item) => ` • ${item}`).join("\n") + "\n";
-            } else {
-              // Fallback for key-value pairs
-              skillsText += `\n--- ${category} ---\n`;
-              Object.entries(skillData).forEach(([k, v]) => {
-                if (k !== "id") skillsText += ` ${k}: ${v}\n`;
-              });
+        data["contact"] = {
+            email: info.email || "N/A",
+            linkedin: formatLink(info.linkedin),
+            github_profile: formatLink(info.github)
+        };
+
+        // --- EDUCATION ---
+        const eduDoc = !educationSnap.empty ? educationSnap.docs[0].data() : {};
+        data["education"] = {
+            degree: eduDoc.degree || "N/A",
+            institution: eduDoc.institution || "N/A",
+            graduation_date: eduDoc.graduation_date || "N/A"
+        };
+
+        // --- SKILLS (Fixed Layout & ASCII Icons) ---
+        const skillsRaw = !skillsSnap.empty ? skillsSnap.docs[0].data() : {};
+        const formattedSkills = {};
+        const skillKeys = ["languages", "frameworks_libraries", "tools_platforms", "concepts"];
+
+        setLoadingStatus("Compiling skill matrix...");
+
+        for (const key of skillKeys) {
+            const val = skillsRaw[key];
+            let items = [];
+            if (val && typeof val === 'object' && !Array.isArray(val)) items = Object.values(val);
+            else if (Array.isArray(val)) items = val;
+
+            const itemsFormatted = await Promise.all(items.map(async (item, index) => {
+                const lowerName = item.toLowerCase().trim();
+                const iconKey = Object.keys(iconMap).find(k => lowerName === k || lowerName.includes(k) || k.includes(lowerName));
+                const iconUrl = iconKey ? iconMap[iconKey] : null;
+
+                // VISUAL HACK: \b\b deletes the ", " that C++ forces between items
+                // We only apply this if it's NOT the first item
+                let prefix = index > 0 ? "\b\b\n" : "";
+
+                const separator = `\x1b[38;5;240m${"-".repeat(40)}\x1b[0m`;
+                let displayString = "";
+
+                if (iconUrl) {
+                    // Increased width to 28 for better ASCII detail
+                    const ascii = await generateAsciiArt(iconUrl, 28);
+                    const placeholder = `[[ICON:${lowerName}]]`;
+                    ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
+
+                    displayString = `${prefix}${separator}\n${placeholder}\n   >> ${item}`;
+                } else {
+                     displayString = `${prefix}${separator}\n   >> ${item}`;
+                }
+                return displayString;
+            }));
+
+            // SPACER HACK: Append \n to the LAST item to force a blank line before the NEXT category
+            if (itemsFormatted.length > 0) {
+                itemsFormatted[itemsFormatted.length - 1] += "\n";
             }
-          });
-          data["skills"] = skillsText || "No skills data formatted.";
-        } else {
-          data["skills"] = "Skills not found.";
+
+            formattedSkills[key] = itemsFormatted.length > 0 ? itemsFormatted : ["N/A"];
         }
+        data["skills"] = formattedSkills;
 
-        // 3. Fetch & Format PERSONAL INFO (About/Contact)
-        const personalInfoSnap = await getDocs(collection(db, "personal_info"));
-        if (!personalInfoSnap.empty) {
-          const info = personalInfoSnap.docs[0].data();
+        // --- PROJECTS ---
+        data["projects"] = projectsSnap.docs.map(doc => {
+            const d = doc.data();
+            return {
+                title: d.title || "Untitled",
+                subtitle: d.subtitle || "",
+                description: wrapText(d.description || "", TERMINAL_COLS),
+                github: formatLink(d.github)
+            };
+        });
 
-          // Format 'about' as a string
-          data["about"] = `NAME: ${info.name || "Matthew Nader"}\n\n${
-            info.description || "Full Stack Developer."
-          }`;
+        // --- EXPERIENCE ---
+        data["experience"] = experienceSnap.docs.map(doc => {
+            const d = doc.data();
+            let descArray = Array.isArray(d.description) ? d.description : [d.description || ""];
+            // Wrap bullet points, slightly narrower to account for bullet indentation
+            descArray = descArray.map(line => wrapText(line, TERMINAL_COLS - 5));
+            return {
+                title: d.title || "N/A",
+                company: d.company || "N/A",
+                duration: d.duration || "N/A",
+                description: descArray
+            };
+        });
 
-          // Format 'contact' as a string
-          data["contact"] = [
-            `Email: ${info.email || "N/A"}`,
-            `Phone: ${info.phone || "N/A"}`,
-            `GitHub: ${info.github || "N/A"}`,
-            `LinkedIn: ${info.linkedin || "N/A"}`,
-          ].join("\n");
-        } else {
-          // Fallback to legacy collections if personal_info missing
-          data["about"] = "Personal info not found.";
-          data["contact"] = "Contact info not found.";
-        }
+        // --- AWARDS ---
+        data["awards"] = awardsSnap.docs.map(doc => {
+            const d = doc.data();
+            return {
+                award: d.award || "N/A",
+                event: d.event || "N/A",
+                date: d.date || "N/A"
+            };
+        });
 
-        console.log("Loaded Portfolio Data:", data);
-        setPortfolioData(data);
-        const jsonString = JSON.stringify(data);
-        setPortfolioDataString(jsonString);
+        console.log("Data loaded successfully");
+        setPortfolioDataString(JSON.stringify(data));
         setLoadingStatus("Ready.");
       } catch (error) {
         console.error("Initialization failed:", error);
@@ -419,6 +607,7 @@ export default function App() {
     initialize();
   }, []);
 
+  // --- RENDER ---
   useEffect(() => {
     if (isLoading || !mountRef.current || !terminalElRef.current) return;
 
@@ -498,7 +687,7 @@ export default function App() {
 
     const RASTER_SCALE = 0.5;
 
-    // --- RESTORED HELPER FUNCTIONS ---
+    // --- HELPER FUNCTIONS (3D) ---
     function worldToScreenXY(vWorld, camera, canvasRect) {
       const ndc = vWorld.clone().project(camera);
       const x = (ndc.x * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
@@ -707,23 +896,30 @@ export default function App() {
     let rebuildClipPath = () => {};
 
     const onWindowResize = () => {
-      if (mountRef.current) {
-        const { clientWidth, clientHeight } = mountRef.current;
+          if (mountRef.current) {
+            const { clientWidth, clientHeight } = mountRef.current;
 
-        // --- FIX: Immediate Update for Mouse/Visual Sync ---
-        camera.aspect = clientWidth / clientHeight;
-        camera.updateProjectionMatrix();
-        webglRenderer.setSize(clientWidth, clientHeight);
-        cssRenderer.setSize(clientWidth, clientHeight);
+            // Update Camera
+            camera.aspect = clientWidth / clientHeight;
+            camera.updateProjectionMatrix();
 
-        // Force CSS Renderer to match WebGL exactly
-        cssRenderer.domElement.style.width = `${clientWidth}px`;
-        cssRenderer.domElement.style.height = `${clientHeight}px`;
+            // Update Renderers
+            webglRenderer.setSize(clientWidth, clientHeight);
+            cssRenderer.setSize(clientWidth, clientHeight);
 
-        if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(rebuildClipPath, 150);
-      }
-    };
+            // Force CSS Renderer to match WebGL exactly
+            cssRenderer.domElement.style.width = `${clientWidth}px`;
+            cssRenderer.domElement.style.height = `${clientHeight}px`;
+
+            // Debounce heavy operations (ClipPath and Terminal Fit)
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+              rebuildClipPath();
+              // --- FIX: Recalculate terminal grid on resize ---
+              terminalComponentRef.current?.fit();
+            }, 150);
+          }
+        };
     window.addEventListener("resize", onWindowResize);
 
     const eventPlane = new THREE.Mesh(
@@ -750,7 +946,7 @@ export default function App() {
         }
       });
 
-      const screenMesh = tv.getObjectByName("defaultMaterial_2");
+      let screenMesh = tv.getObjectByName("defaultMaterial_2");
       if (!screenMesh) {
         console.warn("[app] screen mesh not found, using a fallback");
         const fallbackScreen = tv.children[0]?.children?.find(
@@ -853,23 +1049,8 @@ export default function App() {
       }
 
       function updateCornerPositions() {
-        if (
-          cornerTlRef.current &&
-          cornerTrRef.current &&
-          cornerBlRef.current &&
-          cornerBrRef.current
-        ) {
-          const tl = cornerTlRef.current.getBoundingClientRect();
-          const tr = cornerTrRef.current.getBoundingClientRect();
-          const bl = cornerBlRef.current.getBoundingClientRect();
-          const br = cornerBrRef.current.getBoundingClientRect();
-          screenCornersRef.current = {
-            tl: { x: tl.left, y: tl.top },
-            tr: { x: tr.left, y: tr.top },
-            bl: { x: bl.left, y: bl.top },
-            br: { x: br.left, y: br.top },
-          };
-        }
+        // This function is still present but its logic is no longer used for raycasting
+        // as the eventPlane is now the source of truth. Keeping it empty for now.
       }
 
       function animate() {

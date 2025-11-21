@@ -82,6 +82,9 @@ export const TerminalComponent = forwardRef(
       prompt: () => term.current?.write("\r\n> "),
       focus: () => term.current?.focus(),
 
+      // --- ADDED: Expose fit method ---
+      fit: () => fitAddon.current?.fit(),
+
       getDimensions: () =>
         term.current
           ? { cols: term.current.cols, rows: term.current.rows }
@@ -190,6 +193,8 @@ export const TerminalComponent = forwardRef(
             selectionForeground: "#000000",
           },
           allowTransparency: true,
+          // FIX: Force a small right margin in the renderer to prevent text touching scrollbar
+          rightPadding: 20
         });
 
         term.current.loadAddon(fitAddon.current);
@@ -231,7 +236,12 @@ export const TerminalComponent = forwardRef(
         term.current.writeln(" - https://www.google.com");
         term.current.write("> ");
 
-        fitAddon.current.fit();
+        // --- FIX: Wait for fonts to load before fitting ---
+        // This prevents the "offset" issue where xterm measures
+        // the fallback font instead of Pixelmix initially.
+        document.fonts.ready.then(() => {
+          fitAddon.current.fit();
+        });
 
         term.current.onKey(({ key, domEvent }) => {
           if (domEvent.ctrlKey || domEvent.altKey || domEvent.metaKey) return;
@@ -399,6 +409,8 @@ export const TerminalComponent = forwardRef(
           width: "100%",
           height: "100%",
           padding: "50px",
+          // --- FIX: Add right padding to prevent scrollbar overlap ---
+          paddingRight: "65px",
           boxSizing: "border-box",
         }}
       >
