@@ -9,7 +9,6 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import Stats from "stats.js";
 
 // --- Firebase ---
 import { db } from "./firebaseConfig";
@@ -219,7 +218,6 @@ export default function App() {
   const terminalComponentRef = useRef(null);
 
   // --- State ---
-  const [mouseDebug, setMouseDebug] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [bootFinished, setBootFinished] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -240,8 +238,6 @@ export default function App() {
   const cornerTrRef = useRef(null);
   const cornerBlRef = useRef(null);
   const cornerBrRef = useRef(null);
-  const redPointerRef = useRef(null);
-  const greenPointerRef = useRef(null);
   const isDraggingOnTerminal = useRef(false);
   const selectionStartRef = useRef(null);
   const hoveredLinkRef = useRef(null);
@@ -278,17 +274,6 @@ export default function App() {
       !terminalComponentRef.current
     ) {
       terminalComponentRef.current?.write("\r\nSystem not ready. Please wait.");
-      terminalComponentRef.current?.prompt();
-      return;
-    }
-
-    if (command.trim() === "debug mouse") {
-      const newDebugState = !mouseDebug;
-      setMouseDebug(newDebugState);
-      const status = newDebugState ? "ON" : "OFF";
-      terminalComponentRef.current?.write(
-        `\r\nMouse debugging is now ${status}.\r\n`,
-      );
       terminalComponentRef.current?.prompt();
       return;
     }
@@ -344,7 +329,6 @@ export default function App() {
       const intersects = raycaster.intersectObject(eventPlane);
 
       if (intersects.length === 0) {
-        if (redPointerRef.current) redPointerRef.current.style.display = "none";
         return null;
       }
 
@@ -370,17 +354,6 @@ export default function App() {
       col = Math.max(0, Math.min(col, dims.cols - 1));
       row = Math.max(0, Math.min(row, dims.rows - 1));
 
-      if (mouseDebug) {
-        const char = terminalComponentRef.current?.getChar(col, row);
-        console.log(`Hover: [${col}, ${row}] "${char}"`);
-        if (redPointerRef.current) {
-          const point = intersects[0].point.clone();
-          point.project(camera);
-          redPointerRef.current.style.display = "block";
-          redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * clientWidth}px`;
-          redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * clientHeight}px`;
-        }
-      }
       return { col, row, dims };
     };
 
@@ -428,27 +401,15 @@ export default function App() {
         if (link) {
           document.body.classList.add("force-pointer");
           document.body.classList.remove("force-text");
-          if (redPointerRef.current) {
-            redPointerRef.current.style.backgroundColor = "#00ffff";
-            redPointerRef.current.style.boxShadow = "0 0 10px #00ffff";
-          }
           hoveredLinkRef.current = link;
         } else {
           document.body.classList.remove("force-pointer");
           document.body.classList.add("force-text");
-          if (redPointerRef.current) {
-            redPointerRef.current.style.backgroundColor = "red";
-            redPointerRef.current.style.boxShadow = "none";
-          }
           hoveredLinkRef.current = null;
         }
       } else {
         document.body.classList.remove("force-pointer");
         document.body.classList.remove("force-text");
-        if (redPointerRef.current) {
-          redPointerRef.current.style.backgroundColor = "red";
-          redPointerRef.current.style.boxShadow = "none";
-        }
         hoveredLinkRef.current = null;
       }
 
@@ -487,7 +448,6 @@ export default function App() {
 
       isDraggingOnTerminal.current = false;
       selectionStartRef.current = null;
-      if (redPointerRef.current) redPointerRef.current.style.display = "none";
     };
 
     const mount = mountRef.current;
@@ -502,7 +462,7 @@ export default function App() {
       mount.removeEventListener("mouseup", handleMouseUp);
       mount.removeEventListener("contextmenu", handleContextMenu);
     };
-  }, [mouseDebug, contextMenu]);
+  }, [contextMenu]);
 
   // --- Data Initialization ---
   useEffect(() => {
@@ -741,12 +701,6 @@ export default function App() {
     };
     const tvScale = 1.08;
     const backgroundZoom = 1.1;
-    const stats = new Stats();
-    stats.showPanel(0);
-    mount.appendChild(stats.dom);
-    stats.dom.style.position = "absolute";
-    stats.dom.style.top = "10px";
-    stats.dom.style.left = "10px";
 
     const scene = new THREE.Scene();
     const cssScene = new THREE.Scene();
@@ -1197,7 +1151,6 @@ export default function App() {
 
       function animate() {
         raf = requestAnimationFrame(animate);
-        stats.begin();
 
         updateTerminalTransform();
 
@@ -1237,7 +1190,6 @@ export default function App() {
 
         webglRenderer.render(scene, camera);
         cssRenderer.render(cssScene, camera);
-        stats.end();
       }
 
       onWindowResize();
@@ -1281,36 +1233,6 @@ export default function App() {
         backgroundColor: "#000",
       }}
     >
-      {/* Debug Pointers */}
-      <div
-        ref={redPointerRef}
-        style={{
-          position: "fixed",
-          width: "5px",
-          height: "5px",
-          backgroundColor: "red",
-          borderRadius: "50%",
-          zIndex: 9999,
-          pointerEvents: "none",
-          display: "none",
-          transform: "translate(-50%, -50%)",
-        }}
-      />
-      <div
-        ref={greenPointerRef}
-        style={{
-          position: "fixed",
-          width: "5px",
-          height: "5px",
-          backgroundColor: "green",
-          borderRadius: "50%",
-          zIndex: 9998,
-          pointerEvents: "none",
-          display: "none",
-          transform: "translate(-50%, -50%)",
-        }}
-      />
-
       {/* UI Layer */}
       <div
         className="ui-layer"
@@ -1564,7 +1486,6 @@ export default function App() {
         <TerminalComponent
           ref={terminalComponentRef}
           onCommand={handleTerminalCommand}
-          mouseDebug={mouseDebug}
         />
       </div>
     </div>
