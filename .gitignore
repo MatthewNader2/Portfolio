@@ -1,28 +1,30 @@
 # --- Dependencies ---
-# Ignores node_modules anywhere in the project
 node_modules/
 
 # --- Build Output ---
-# Ignores build folders anywhere in the project
 dist/
 build/
 
-# --- Environment Variables (Security) ---
+# --- Environment & Secrets ---
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
+
+# --- Firebase & Backend Configuration ---
+# Hides hosting config and security rules
+firebase.json
+firestore.rules
+firestore.indexes.json
+.firebaserc
+
+# --- API Keys / Secrets ---
+# VERY IMPORTANT: This hides your API keys from the public repo
+frontend/src/firebaseConfig.js
 
 # --- Engine / C Build Artifacts ---
-# Ignore compiled object files
 *.o
 *.obj
-
-# Ignore the compiled executable
 engine/src/portfolio_engine
-
-# Ignore Flex/Bison generated files (so you only commit the source .l and .y)
 engine/src/lex.yy.c
 engine/src/parser.tab.c
 engine/src/parser.tab.h
