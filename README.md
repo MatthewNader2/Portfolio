@@ -1,6 +1,6 @@
-***
-
 # Interactive 3D Terminal Portfolio
+
+**🔴 Live Demo:** [https://matthew-nader.web.app](https://matthew-nader.web.app)
 
 A high-fidelity, interactive portfolio website that simulates a retro CRT monitor running a custom Linux-like environment. This project bridges the gap between high-performance 3D graphics (Three.js), DOM-based interactivity (CSS3D), and low-level systems programming (C/WASM).
 
