@@ -52,36 +52,120 @@ html {
     pointer-events: auto; /* IMPORTANT */
 }
 
-/* Target the main scrollable area within any xterm instance */
+/* --- SCROLLBARS --- */
 .xterm .xterm-viewport::-webkit-scrollbar {
-    width: 12px; /* A good, chunky width for a retro feel */
+    width: 12px;
 }
-
-/* The track is the background of the scrollbar */
 .xterm .xterm-viewport::-webkit-scrollbar-track {
-    background: #111; /* A very dark grey, almost black */
-    border-left: 1px solid #00ff00; /* A sharp green line, like a monitor bezel */
+    background: #111;
+    border-left: 1px solid #00ff00;
 }
-
-/* The thumb is the draggable handle itself */
 .xterm .xterm-viewport::-webkit-scrollbar-thumb {
-    background: #00ff00; /* Bright, solid green */
-    box-shadow: 0 0 5px #00ff00; /* Add a CRT-like glow effect */
-    border: 1px solid #33ff33; /* A slightly lighter border for definition */
+    background: #00ff00;
+    box-shadow: 0 0 5px #00ff00;
+    border: 1px solid #33ff33;
 }
-
-/* Make the thumb a bit brighter when you hover over it */
 .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
     background: #33ff33;
 }
 
-/* FORCE CURSOR STYLES */
+/* --- CURSOR UTILS --- */
 body.force-pointer,
 body.force-pointer * {
     cursor: pointer !important;
 }
-
 body.force-text,
 body.force-text * {
     cursor: text !important;
+}
+
+/* --- CRT / GLITCH EFFECTS (CSS ONLY) --- */
+
+/* 1. Scanlines Overlay */
+.crt-scanlines::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background:
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+        linear-gradient(
+            90deg,
+            rgba(255, 0, 0, 0.06),
+            rgba(0, 255, 0, 0.02),
+            rgba(0, 0, 255, 0.06)
+        );
+    z-index: 10;
+    background-size:
+        100% 2px,
+        3px 100%;
+    pointer-events: none;
+}
+
+/* 2. Text Flicker Animation */
+@keyframes textShadow {
+    0% {
+        text-shadow:
+            0.4389924193300864px 0 1px rgba(0, 30, 255, 0.5),
+            -0.4389924193300864px 0 1px rgba(255, 0, 80, 0.3),
+            0 0 3px;
+    }
+    5% {
+        text-shadow:
+            2.7928974010788217px 0 1px rgba(0, 30, 255, 0.5),
+            -2.7928974010788217px 0 1px rgba(255, 0, 80, 0.3),
+            0 0 3px;
+    }
+    100% {
+        text-shadow:
+            0.4389924193300864px 0 1px rgba(0, 30, 255, 0.5),
+            -0.4389924193300864px 0 1px rgba(255, 0, 80, 0.3),
+            0 0 3px;
+    }
+}
+
+/* 3. Screen Shake/Distortion */
+@keyframes crt-flicker {
+    0% {
+        opacity: 0.97;
+    }
+    5% {
+        opacity: 0.95;
+    }
+    10% {
+        opacity: 0.9;
+    }
+    15% {
+        opacity: 0.95;
+    }
+    20% {
+        opacity: 0.99;
+    }
+    50% {
+        opacity: 0.95;
+    }
+    55% {
+        opacity: 0.9;
+    }
+    60% {
+        opacity: 0.95;
+    }
+    80% {
+        opacity: 0.98;
+    }
+    100% {
+        opacity: 0.96;
+    }
+}
+
+.crt-effects {
+    animation: crt-flicker 0.15s infinite;
+    text-shadow: 1px 0 2px rgba(0, 255, 0, 0.6);
+}
+
+.crt-effects .xterm-rows {
+    animation: textShadow 1.6s infinite;
 }

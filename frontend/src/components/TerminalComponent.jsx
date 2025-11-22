@@ -16,6 +16,7 @@ export const TerminalComponent = forwardRef(
     const term = useRef(null);
     const fitAddon = useRef(new FitAddon());
 
+    // Restored Debug Pointers
     const bluePointerRef = useRef(null);
     const yellowPointerRef = useRef(null);
 
@@ -28,6 +29,7 @@ export const TerminalComponent = forwardRef(
       tabPressCount: 0,
     });
 
+    // Restored "debug" to available commands
     const availableCommands = ["cat", "echo", "help", "clear", "cls", "debug"];
     const availableSections = [
       "about",
@@ -81,65 +83,48 @@ export const TerminalComponent = forwardRef(
       clear: () => term.current?.clear(),
       prompt: () => term.current?.write("\r\n> "),
       focus: () => term.current?.focus(),
-
-      // --- ADDED: Expose fit method ---
       fit: () => fitAddon.current?.fit(),
-
       getDimensions: () =>
         term.current
           ? { cols: term.current.cols, rows: term.current.rows }
           : null,
-
-      // --- FIX: Scrolling Support (Add viewportY) ---
       select: (col, row, length) => {
         if (!term.current) return;
         const buffer = term.current.buffer.active;
         const actualRow = row + buffer.viewportY;
         term.current.select(col, actualRow, length);
       },
-
       clearSelection: () => term.current?.clearSelection(),
       getSelection: () => term.current?.getSelection(),
-
       selectWordAt: (col, row) => {
         if (!term.current) return;
         const buffer = term.current.buffer.active;
         const actualRow = row + buffer.viewportY;
-
         const line = buffer.getLine(actualRow);
         if (!line) return;
-
         const str = line.translateToString(false);
-
         if (!str[col] || str[col] === " ") return;
-
         let start = col;
         let end = col;
-
         while (start > 0) {
           const char = str[start - 1];
           if (!char || char === " ") break;
           start--;
         }
-
         while (end < str.length) {
           const char = str[end];
           if (!char || char === " ") break;
           end++;
         }
-
         term.current.select(start, actualRow, end - start);
       },
-
       selectLineAt: (row) => {
         if (!term.current) return;
         const buffer = term.current.buffer.active;
         const actualRow = row + buffer.viewportY;
         term.current.select(0, actualRow, term.current.cols);
       },
-
       paste: (text) => handleInputText(text),
-
       getChar: (col, row) => {
         const buffer = term.current?.buffer.active;
         if (!buffer) return null;
@@ -147,19 +132,15 @@ export const TerminalComponent = forwardRef(
         const line = buffer.getLine(actualRow);
         return line?.getCell(col)?.getChars() || null;
       },
-
       getLinkAt: (col, row) => {
         if (!term.current) return null;
         const buffer = term.current.buffer.active;
         const actualRow = row + buffer.viewportY;
-
         const line = buffer.getLine(actualRow);
         if (!line) return null;
-
         const lineStr = line.translateToString(true);
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         let match;
-
         while ((match = urlRegex.exec(lineStr)) !== null) {
           const start = match.index;
           const end = start + match[0].length;
@@ -169,7 +150,6 @@ export const TerminalComponent = forwardRef(
         }
         return null;
       },
-
       getViewportBounds: () => {
         const target = term.current?.element.querySelector(".xterm-viewport");
         return target?.getBoundingClientRect();
@@ -194,7 +174,6 @@ export const TerminalComponent = forwardRef(
             selectionForeground: "#000000",
           },
           allowTransparency: true,
-          // FIX: Force a small right margin in the renderer to prevent text touching scrollbar
           rightPadding: 20,
         });
 
@@ -233,9 +212,6 @@ export const TerminalComponent = forwardRef(
         term.current.writeln("Type 'help' for a list of commands.");
         term.current.write("> ");
 
-        // --- FIX: Wait for fonts to load before fitting ---
-        // This prevents the "offset" issue where xterm measures
-        // the fallback font instead of Pixelmix initially.
         document.fonts.ready.then(() => {
           fitAddon.current.fit();
         });
@@ -345,6 +321,7 @@ export const TerminalComponent = forwardRef(
       }
     }, [onCommand]);
 
+    // --- RESTORED: Mouse Debugging Logic ---
     useEffect(() => {
       const target = term.current?.element.querySelector(".xterm-viewport");
       if (!target) return;
@@ -406,7 +383,6 @@ export const TerminalComponent = forwardRef(
           width: "100%",
           height: "100%",
           padding: "50px",
-          // --- FIX: Add right padding to prevent scrollbar overlap ---
           paddingRight: "65px",
           boxSizing: "border-box",
         }}

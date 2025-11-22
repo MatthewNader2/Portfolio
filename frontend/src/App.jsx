@@ -26,38 +26,34 @@ const ASCII_CACHE = {
 };
 
 // --- CONFIGURATION ---
-// Reduced to 45 to strictly prevent xterm.js from force-wrapping at the edge
 const TERMINAL_COLS = 44;
 
-// --- HELPER: Strip ANSI Codes for Length Calculation ---
+// --- ICONS ---
+const GearIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" height="24" width="24">
+    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+  </svg>
+);
+
+// --- HELPER: Strip ANSI Codes ---
 const stripAnsi = (str) => str.replace(/\x1b\[[0-9;]*m/g, "");
 
-// --- HELPER: Robust Text Wrapper (ANSI-Aware) ---
+// --- HELPER: Robust Text Wrapper ---
 const wrapText = (text, maxWidth, indent = "") => {
   if (!text) return "";
-
-  // Trim to remove database trailing newlines (Fixes "Weird Empty Line")
   text = text.trim();
-
-  // Split by existing newlines to respect paragraph breaks
   const paragraphs = text.split(/\r?\n/);
-
   return paragraphs
     .map((para) => {
       if (!para.trim()) return "";
-
       const words = para.trim().split(/\s+/);
       let lines = [];
       let currentLine = words[0];
-
       for (let i = 1; i < words.length; i++) {
         const word = words[i];
-
-        // Calculate VISIBLE length (ignoring colors)
         const currentLen = stripAnsi(currentLine).length;
         const wordLen = stripAnsi(word).length;
         const indentLen = indent.length;
-
         if (currentLen + 1 + wordLen <= maxWidth - indentLen) {
           currentLine += " " + word;
         } else {
@@ -84,11 +80,9 @@ const generateAsciiArt = (imageUrl, width = 60) => {
       const height = (img.height / img.width) * width * 0.5;
       canvas.width = width;
       canvas.height = height;
-
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, width, height);
-
       try {
         const data = ctx.getImageData(0, 0, width, height).data;
         const chars =
@@ -101,18 +95,13 @@ const generateAsciiArt = (imageUrl, width = 60) => {
             const g = data[offset + 1];
             const b = data[offset + 2];
             const alpha = data[offset + 3];
-
             if (alpha < 20) {
               ascii += " ";
               continue;
             }
-
             const avg = (r + g + b) / 3;
-            // Invert index for this specific ramp (Dark -> Light)
             const charIndex = Math.floor((avg / 255) * (chars.length - 1));
             const char = chars[chars.length - 1 - charIndex] || ".";
-
-            // TrueColor ANSI
             ascii += `\x1b[38;2;${r};${g};${b}m${char}`;
           }
           ascii += "\x1b[0m\n";
@@ -162,6 +151,13 @@ export default function App() {
   const [loadingStatus, setLoadingStatus] = useState("Booting system...");
   const [mouseDebug, setMouseDebug] = useState(false);
 
+  // --- Settings State ---
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    particles: true,
+    glitch: true,
+  });
+
   // --- Context Menu State ---
   const [contextMenu, setContextMenu] = useState(null);
 
@@ -205,7 +201,7 @@ export default function App() {
     setContextMenu({ x: event.clientX, y: event.clientY });
   };
 
-  // --- COMMAND HANDLER (With Placeholder Replacement) ---
+  // --- COMMAND HANDLER ---
   const handleTerminalCommand = (command) => {
     if (!wasmEngine || !portfolioDataString || !terminalComponentRef.current) {
       terminalComponentRef.current?.write("\r\nSystem not ready. Please wait.");
@@ -230,23 +226,15 @@ export default function App() {
       return;
     }
 
-    // 1. Run C++ Engine
     let result = wasmEngine.processCommand(trimmedCommand, portfolioDataString);
 
     if (result === "COMMAND_CLEAR") {
       terminalComponentRef.current.clear();
     } else {
-      // 2. INJECT HEAVY ASSETS (Fixes Memory Crash)
-      // We stored "[[PROFILE_ART]]" in the JSON sent to C++.
-      // Now we replace it with the actual 50KB string stored in JS.
       if (result.includes("[[PROFILE_ART]]")) {
         result = result.replace("[[PROFILE_ART]]", ASCII_CACHE.profile);
       }
-
-      // 3. Inject Skill Icons
-      // We look for patterns like [[ICON:python]] and replace them
       result = result.replace(/\[\[ICON:(.*?)\]\]/g, (match, skillKey) => {
-        // The skillKey in the placeholder is lowercased
         return ASCII_CACHE.icons[skillKey] || "";
       });
 
@@ -255,6 +243,7 @@ export default function App() {
     }
   };
 
+  // --- MOUSE INTERACTION (Original Robust Logic) ---
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -264,8 +253,6 @@ export default function App() {
       if (!camera || !eventPlane || !container) return null;
 
       const { clientWidth, clientHeight } = container;
-
-      // Ensure matrix is fresh for raycasting
       eventPlane.updateMatrixWorld();
 
       const rect = container.getBoundingClientRect();
@@ -275,7 +262,6 @@ export default function App() {
       const mouse = new THREE.Vector2();
       const raycaster = new THREE.Raycaster();
 
-      // Calculate Normalized Device Coordinates
       mouse.x = (offsetX / clientWidth) * 2 - 1;
       mouse.y = -(offsetY / clientHeight) * 2 + 1;
 
@@ -300,20 +286,15 @@ export default function App() {
 
       const contentWidth = TERM_WIDTH - PADDING * 2;
       const contentHeight = TERM_HEIGHT - PADDING * 2;
-
-      // If fit() hasn't run correctly, dims.cols might be wrong, causing the drift.
-      // The fix in onWindowResize ensures dims.cols is accurate to the visual state.
       const cellWidth = contentWidth / dims.cols;
       const cellHeight = contentHeight / dims.rows;
 
-      // +0.5 Centering Fix
       let col = Math.floor((localX - PADDING) / cellWidth + 0.5);
       let row = Math.floor((localY - PADDING) / cellHeight);
 
       col = Math.max(0, Math.min(col, dims.cols - 1));
       row = Math.max(0, Math.min(row, dims.rows - 1));
 
-      // ... (Debug logic remains the same) ...
       if (mouseDebug) {
         const char = terminalComponentRef.current?.getChar(col, row);
         console.log(`Hover: [${col}, ${row}] "${char}"`);
@@ -451,6 +432,7 @@ export default function App() {
     };
   }, [mouseDebug, contextMenu]);
 
+  // --- DATA INITIALIZATION ---
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -465,7 +447,6 @@ export default function App() {
 
         setLoadingStatus("Contacting database...");
 
-        // 1. Prepare Icon Map (Merge Firebase + Fallback)
         const iconsSnap = await getDocs(collection(db, "skill_icons"));
         let iconMap = { ...FALLBACK_ICONS };
         if (!iconsSnap.empty) {
@@ -479,7 +460,6 @@ export default function App() {
           });
         }
 
-        // 2. Fetch Data
         const projectsSnap = await getDocs(collection(db, "projects"));
         const experienceSnap = await getDocs(collection(db, "experience"));
         const educationSnap = await getDocs(collection(db, "education"));
@@ -491,10 +471,8 @@ export default function App() {
           ? personalInfoSnap.docs[0].data()
           : {};
 
-        // 3. Generate Profile Art (High Detail Mode)
         if (info.profile_picture_url) {
           setLoadingStatus("Generating neural visual...");
-          // Increased width to 70 for better detail
           ASCII_CACHE.profile = await generateAsciiArt(
             info.profile_picture_url,
             70,
@@ -503,7 +481,6 @@ export default function App() {
 
         const data = {};
 
-        // --- ABOUT ---
         const aboutDesc = wrapText(
           info.description || "Full Stack Developer.",
           TERMINAL_COLS,
@@ -512,10 +489,8 @@ export default function App() {
           content: `\n[[PROFILE_ART]]\nNAME: ${info.name || "Matthew Nader"}\n\n${aboutDesc}`,
         };
 
-        // --- CONTACT ---
         const formatLink = (link) => {
           if (!link || link === "N/A") return "N/A";
-          // Remove existing protocol if present to avoid double https://
           const clean = link.replace(/^https?:\/\//, "");
           return `https://${clean}`;
         };
@@ -526,7 +501,6 @@ export default function App() {
           github_profile: formatLink(info.github),
         };
 
-        // --- EDUCATION ---
         const eduDoc = !educationSnap.empty ? educationSnap.docs[0].data() : {};
         data["education"] = {
           degree: eduDoc.degree || "N/A",
@@ -534,7 +508,6 @@ export default function App() {
           graduation_date: eduDoc.graduation_date || "N/A",
         };
 
-        // --- SKILLS (Fixed Layout & ASCII Icons) ---
         const skillsRaw = !skillsSnap.empty ? skillsSnap.docs[0].data() : {};
         const formattedSkills = {};
         const skillKeys = [
@@ -563,20 +536,14 @@ export default function App() {
                   k.includes(lowerName),
               );
               const iconUrl = iconKey ? iconMap[iconKey] : null;
-
-              // VISUAL HACK: \b\b deletes the ", " that C++ forces between items
-              // We only apply this if it's NOT the first item
               let prefix = index > 0 ? "\b\b\n" : "";
-
               const separator = `\x1b[38;5;240m${"-".repeat(40)}\x1b[0m`;
               let displayString = "";
 
               if (iconUrl) {
-                // Increased width to 28 for better ASCII detail
                 const ascii = await generateAsciiArt(iconUrl, 28);
                 const placeholder = `[[ICON:${lowerName}]]`;
                 ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
-
                 displayString = `${prefix}${separator}\n${placeholder}\n   >> ${item}`;
               } else {
                 displayString = `${prefix}${separator}\n   >> ${item}`;
@@ -585,37 +552,23 @@ export default function App() {
             }),
           );
 
-          // SPACER HACK: Append \n to the LAST item to force a blank line before the NEXT category
           if (itemsFormatted.length > 0) {
             itemsFormatted[itemsFormatted.length - 1] += "\n";
           }
-
           formattedSkills[key] =
             itemsFormatted.length > 0 ? itemsFormatted : ["N/A"];
         }
         data["skills"] = formattedSkills;
 
-        // --- PROJECTS ---
         data["projects"] = projectsSnap.docs.map((doc) => {
           const d = doc.data();
-
-          // 1. Visual Separator
           const separator = `\x1b[38;5;240m${"-".repeat(TERMINAL_COLS)}\x1b[0m`;
-
-          // 2. Styled Title & Subtitle
-          // Wrap Title if it's too long
           const rawTitle = d.title || "Untitled";
           const wrappedTitle = wrapText(rawTitle, TERMINAL_COLS);
-
-          // \x1b[1;32m = Bold Green, \x1b[36m = Cyan
           const title = `\n${separator}\n\x1b[1;32m${wrappedTitle}\x1b[0m`;
           const subtitle = `\x1b[36m${d.subtitle || ""}\x1b[0m`;
-
-          // 3. Description Formatting
-          // We prepend \n to force it to the next line below "Desc:"
-          // We indent subsequent lines by 3 spaces to align nicely
           const rawDesc = d.description || "";
-          const wrappedDesc = wrapText(rawDesc, TERMINAL_COLS, "   "); // 3 spaces indent
+          const wrappedDesc = wrapText(rawDesc, TERMINAL_COLS, "   ");
           const description = `\n   ${wrappedDesc}`;
 
           return {
@@ -626,62 +579,42 @@ export default function App() {
           };
         });
 
-        // --- EXPERIENCE (SMART DATES & SPACING) ---
         data["experience"] = experienceSnap.docs.map((doc) => {
           const d = doc.data();
           const separator = `\x1b[38;5;240m${"-".repeat(TERMINAL_COLS)}\x1b[0m`;
-
           const rawTitle = d.title || "N/A";
           const rawCompany = d.company || "N/A";
           const rawDuration = d.duration || "N/A";
-
-          // 1. Smart Header Calculation
-          // C++ format is: "%s at %s (%s)"
-          // We calculate the visual length of that resulting string
           const fullLineLen =
             rawTitle.length +
             4 +
             rawCompany.length +
             2 +
             rawDuration.length +
-            1; // 4=" at ", 2=" (", 1=")"
+            1;
           const titleCompanyLen = rawTitle.length + 4 + rawCompany.length;
-
           let finalTitle = rawTitle;
           let finalCompany = rawCompany;
 
           if (fullLineLen <= TERMINAL_COLS) {
-            // Case 1: Everything fits on one line
-            // Do nothing, leave as is.
+            // Fits
           } else if (titleCompanyLen <= TERMINAL_COLS) {
-            // Case 2: Title + Company fits, but Date causes overflow
-            // Push Date to next line by adding newline to Company
             finalCompany = `${rawCompany}\n`;
           } else {
-            // Case 3: Title + Company is too long. Stack everything.
-            // Title
-            //  at Company
-            //  (Date)
             finalTitle = `${rawTitle}\n`;
             finalCompany = `${rawCompany}\n`;
           }
 
-          // Apply Colors & Wrap individual components if they are massive (rare)
           const title = `\n${separator}\n\x1b[1;32m${wrapText(finalTitle, TERMINAL_COLS)}\x1b[0m`;
           const company = `\x1b[1;37m${wrapText(finalCompany, TERMINAL_COLS)}\x1b[0m`;
           const duration = `\x1b[36m${d.duration || "N/A"}\x1b[0m`;
 
-          // 2. Description with Spacing
           let descArray = Array.isArray(d.description)
             ? d.description
             : [d.description || ""];
-
-          // Filter empty lines
           descArray = descArray.filter(
             (line) => line && line.trim().length > 0,
           );
-
-          // Wrap text AND add an extra newline for spacing between points
           descArray = descArray.map((line) => {
             return wrapText(line, TERMINAL_COLS - 4, "    ") + "\n";
           });
@@ -694,7 +627,6 @@ export default function App() {
           };
         });
 
-        // --- AWARDS ---
         data["awards"] = awardsSnap.docs.map((doc) => {
           const d = doc.data();
           return {
@@ -704,7 +636,6 @@ export default function App() {
           };
         });
 
-        console.log("Data loaded successfully");
         setPortfolioDataString(JSON.stringify(data));
         setLoadingStatus("Ready.");
       } catch (error) {
@@ -717,7 +648,7 @@ export default function App() {
     initialize();
   }, []);
 
-  // --- RENDER ---
+  // --- 3D RENDER LOOP & FEATURES ---
   useEffect(() => {
     if (isLoading || !mountRef.current || !terminalElRef.current) return;
 
@@ -789,6 +720,39 @@ export default function App() {
     dl.position.set(5, 5, 5);
     scene.add(dl);
 
+    // --- PARTICLES (Dust Style) ---
+    const particleCount = 600;
+    const particleGeo = new THREE.DodecahedronGeometry(0.008, 0);
+    const particleMat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0.7,
+    });
+    const particleMesh = new THREE.InstancedMesh(
+      particleGeo,
+      particleMat,
+      particleCount,
+    );
+    scene.add(particleMesh);
+
+    const particlesData = [];
+    const color = new THREE.Color();
+    const palette = [0xffffff, 0xdddddd, 0xeeeecc, 0xddeeff, 0xfffacd];
+
+    for (let i = 0; i < particleCount; i++) {
+      particlesData.push({
+        time: Math.random() * 100,
+        speed: 0.003 + Math.random() / 600,
+        x: (Math.random() - 0.5) * 25,
+        y: (Math.random() - 0.5) * 25,
+        z: (Math.random() - 0.5) * 15,
+      });
+      color.setHex(palette[Math.floor(Math.random() * palette.length)]);
+      particleMesh.setColorAt(i, color);
+    }
+    particleMesh.instanceColor.needsUpdate = true;
+    const dummy = new THREE.Object3D();
+
+    // --- LOADERS ---
     const ktx2Loader = new KTX2Loader().setTranscoderPath("/basis/");
     const gltfLoader = new GLTFLoader();
     gltfLoader.setKTX2Loader(ktx2Loader);
@@ -1009,23 +973,18 @@ export default function App() {
       if (mountRef.current) {
         const { clientWidth, clientHeight } = mountRef.current;
 
-        // Update Camera
         camera.aspect = clientWidth / clientHeight;
         camera.updateProjectionMatrix();
 
-        // Update Renderers
         webglRenderer.setSize(clientWidth, clientHeight);
         cssRenderer.setSize(clientWidth, clientHeight);
 
-        // Force CSS Renderer to match WebGL exactly
         cssRenderer.domElement.style.width = `${clientWidth}px`;
         cssRenderer.domElement.style.height = `${clientHeight}px`;
 
-        // Debounce heavy operations (ClipPath and Terminal Fit)
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
           rebuildClipPath();
-          // --- FIX: Recalculate terminal grid on resize ---
           terminalComponentRef.current?.fit();
         }, 150);
       }
@@ -1043,6 +1002,7 @@ export default function App() {
       const tv = gltf.scene;
 
       let meshIndex = 0;
+      // --- RESTORED: Correct Material Traversal ---
       tv.traverse((c) => {
         if (c.isMesh) {
           if (meshIndex === 0 || meshIndex === 2) {
@@ -1118,8 +1078,6 @@ export default function App() {
 
         if (size.x === 0 || size.y === 0) return;
 
-        // --- FIX: Safety Scale to prevent "Wider than TV" ---
-        // We multiply by 0.995 to ensure it sits just inside the bezel
         const baseScale = new THREE.Vector3(
           (size.x / termW) * 0.995,
           (size.y / termH) * 0.995,
@@ -1147,7 +1105,6 @@ export default function App() {
           1,
         );
 
-        // Sync Event Plane for Raycasting
         eventPlane.position.copy(cssObject.position);
         eventPlane.quaternion.copy(cssObject.quaternion);
         eventPlane.scale.set(
@@ -1158,16 +1115,34 @@ export default function App() {
         eventPlane.updateMatrixWorld();
       }
 
-      function updateCornerPositions() {
-        // This function is still present but its logic is no longer used for raycasting
-        // as the eventPlane is now the source of truth. Keeping it empty for now.
-      }
-
       function animate() {
         raf = requestAnimationFrame(animate);
         stats.begin();
+
         updateTerminalTransform();
-        updateCornerPositions();
+
+        // --- SYNC SETTINGS FOR PARTICLES ---
+        const currentSettings = window.currentSettings || { particles: true };
+        particleMesh.visible = currentSettings.particles;
+
+        if (currentSettings.particles) {
+          particlesData.forEach((particle, i) => {
+            let { speed, x, y, z } = particle;
+            const t = (particle.time += speed);
+            dummy.position.set(
+              x + Math.cos(t) + Math.sin(t * 1) / 10,
+              y + Math.sin(t) + Math.cos(t * 2) / 10,
+              z + Math.cos(t) + Math.sin(t * 3) / 10,
+            );
+            const s = Math.cos(t);
+            dummy.scale.set(s, s, s);
+            dummy.rotation.set(s * 5, s * 5, s * 5);
+            dummy.updateMatrix();
+            particleMesh.setMatrixAt(i, dummy.matrix);
+          });
+          particleMesh.instanceMatrix.needsUpdate = true;
+        }
+
         webglRenderer.render(scene, camera);
         cssRenderer.render(cssScene, camera);
         stats.end();
@@ -1185,6 +1160,20 @@ export default function App() {
     };
   }, [isLoading]);
 
+  // --- SYNC SETTINGS (UI to DOM) ---
+  useEffect(() => {
+    window.currentSettings = settings;
+    if (terminalElRef.current) {
+      if (settings.glitch) {
+        terminalElRef.current.classList.add("crt-effects");
+        terminalElRef.current.classList.add("crt-scanlines");
+      } else {
+        terminalElRef.current.classList.remove("crt-effects");
+        terminalElRef.current.classList.remove("crt-scanlines");
+      }
+    }
+  }, [settings]);
+
   return (
     <div
       ref={mountRef}
@@ -1193,8 +1182,10 @@ export default function App() {
         height: "100%",
         position: "relative",
         touchAction: "none",
+        backgroundColor: "#000",
       }}
     >
+      {/* --- DEBUG POINTERS (Restored) --- */}
       <div
         ref={redPointerRef}
         style={{
@@ -1224,63 +1215,207 @@ export default function App() {
         }}
       />
 
-      {contextMenu &&
-        createPortal(
+      {/* --- UI LAYER --- */}
+      <div
+        className="ui-layer"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none", // Let clicks pass through to 3D
+          zIndex: 10000,
+        }}
+      >
+        {/* SETTINGS BUTTON */}
+        <div
+          style={{
+            position: "absolute",
+            top: "20px",
+            right: "20px",
+            color: "#00ff00",
+            cursor: "pointer",
+            opacity: 0.7,
+            transition: "opacity 0.2s",
+            pointerEvents: "auto", // Re-enable clicks
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.7)}
+          onClick={() => setShowSettings(!showSettings)}
+        >
+          <GearIcon />
+        </div>
+
+        {/* SETTINGS MENU */}
+        {showSettings && (
           <div
             style={{
-              position: "fixed",
-              top: contextMenu.y,
-              left: contextMenu.x,
-              backgroundColor: "#000",
+              position: "absolute",
+              top: "60px",
+              right: "20px",
+              width: "200px",
+              backgroundColor: "rgba(0, 10, 0, 0.95)",
               border: "1px solid #00ff00",
-              color: "#00ff00",
+              boxShadow: "0 0 15px rgba(0, 255, 0, 0.2)",
+              padding: "15px",
               fontFamily: '"Pixelmix", monospace',
-              fontSize: "14px",
-              zIndex: 100000,
-              padding: "5px 0",
-              boxShadow: "0 0 15px rgba(0, 255, 0, 0.4)",
-              minWidth: "120px",
+              fontSize: "12px",
+              color: "#00ff00",
+              pointerEvents: "auto",
             }}
-            onContextMenu={(e) => e.preventDefault()}
           >
             <div
               style={{
-                padding: "8px 20px",
-                cursor: "pointer",
-                transition: "background 0.2s",
+                marginBottom: "10px",
+                borderBottom: "1px solid #004400",
+                paddingBottom: "5px",
+                fontWeight: "bold",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#003300")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "transparent")
-              }
-              onClick={handleCopy}
             >
-              Copy
+              SYSTEM CONFIG
             </div>
+
             <div
               style={{
-                padding: "8px 20px",
-                cursor: "pointer",
-                transition: "background 0.2s",
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+                alignItems: "center",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#003300")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "transparent")
-              }
-              onClick={handlePaste}
             >
-              Paste
+              <span>DUST FX</span>
+              <div
+                onClick={() =>
+                  setSettings((s) => ({ ...s, particles: !s.particles }))
+                }
+                style={{
+                  width: "30px",
+                  height: "15px",
+                  border: "1px solid #00ff00",
+                  cursor: "pointer",
+                  position: "relative",
+                  background: settings.particles
+                    ? "rgba(0,255,0,0.2)"
+                    : "transparent",
+                }}
+              >
+                <div
+                  style={{
+                    width: "13px",
+                    height: "13px",
+                    backgroundColor: settings.particles ? "#00ff00" : "#004400",
+                    position: "absolute",
+                    top: 0,
+                    left: settings.particles ? "15px" : 0,
+                    transition: "left 0.2s",
+                  }}
+                />
+              </div>
             </div>
-          </div>,
-          document.body,
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "5px",
+                alignItems: "center",
+              }}
+            >
+              <span>CRT FX</span>
+              <div
+                onClick={() =>
+                  setSettings((s) => ({ ...s, glitch: !s.glitch }))
+                }
+                style={{
+                  width: "30px",
+                  height: "15px",
+                  border: "1px solid #00ff00",
+                  cursor: "pointer",
+                  position: "relative",
+                  background: settings.glitch
+                    ? "rgba(0,255,0,0.2)"
+                    : "transparent",
+                }}
+              >
+                <div
+                  style={{
+                    width: "13px",
+                    height: "13px",
+                    backgroundColor: settings.glitch ? "#00ff00" : "#004400",
+                    position: "absolute",
+                    top: 0,
+                    left: settings.glitch ? "15px" : 0,
+                    transition: "left 0.2s",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         )}
 
+        {/* CONTEXT MENU */}
+        {contextMenu &&
+          createPortal(
+            <div
+              style={{
+                position: "fixed",
+                top: contextMenu.y,
+                left: contextMenu.x,
+                backgroundColor: "#000",
+                border: "1px solid #00ff00",
+                color: "#00ff00",
+                fontFamily: '"Pixelmix", monospace',
+                fontSize: "14px",
+                zIndex: 100000,
+                padding: "5px 0",
+                boxShadow: "0 0 15px rgba(0, 255, 0, 0.4)",
+                minWidth: "120px",
+                pointerEvents: "auto",
+              }}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <div
+                style={{
+                  padding: "8px 20px",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#003300")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+                onClick={handleCopy}
+              >
+                Copy
+              </div>
+              <div
+                style={{
+                  padding: "8px 20px",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#003300")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+                onClick={handlePaste}
+              >
+                Paste
+              </div>
+            </div>,
+            document.body,
+          )}
+      </div>
+
+      {/* --- TERMINAL CONTAINER --- */}
       <div
         ref={terminalElRef}
+        className="crt-effects crt-scanlines"
         style={{
           width: "1024px",
           height: "768px",
