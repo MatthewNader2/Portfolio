@@ -22,20 +22,29 @@ import backgroundUrl from "./assets/background.jpg";
 // --- GLOBAL CACHE ---
 const ASCII_CACHE = {
   profile: "",
-  icons: {}
+  icons: {},
 };
 
 // --- CONFIGURATION ---
-const TERMINAL_COLS = 65;
+// Reduced to 45 to strictly prevent xterm.js from force-wrapping at the edge
+const TERMINAL_COLS = 44;
 
-// --- HELPER: Robust Text Wrapper ---
-const wrapText = (text, maxWidth) => {
+// --- HELPER: Strip ANSI Codes for Length Calculation ---
+const stripAnsi = (str) => str.replace(/\x1b\[[0-9;]*m/g, "");
+
+// --- HELPER: Robust Text Wrapper (ANSI-Aware) ---
+const wrapText = (text, maxWidth, indent = "") => {
   if (!text) return "";
-  // 1. Split into paragraphs first to preserve user-intended newlines
+
+  // Trim to remove database trailing newlines (Fixes "Weird Empty Line")
+  text = text.trim();
+
+  // Split by existing newlines to respect paragraph breaks
   const paragraphs = text.split(/\r?\n/);
 
-  return paragraphs.map(para => {
-      if (!para.trim()) return ""; // Preserve empty lines
+  return paragraphs
+    .map((para) => {
+      if (!para.trim()) return "";
 
       const words = para.trim().split(/\s+/);
       let lines = [];
@@ -43,8 +52,13 @@ const wrapText = (text, maxWidth) => {
 
       for (let i = 1; i < words.length; i++) {
         const word = words[i];
-        // Check if adding the word exceeds width
-        if (currentLine.length + 1 + word.length <= maxWidth) {
+
+        // Calculate VISIBLE length (ignoring colors)
+        const currentLen = stripAnsi(currentLine).length;
+        const wordLen = stripAnsi(word).length;
+        const indentLen = indent.length;
+
+        if (currentLen + 1 + wordLen <= maxWidth - indentLen) {
           currentLine += " " + word;
         } else {
           lines.push(currentLine);
@@ -52,11 +66,12 @@ const wrapText = (text, maxWidth) => {
         }
       }
       lines.push(currentLine);
-      return lines.join("\n");
-  }).join("\n");
+      return lines.join("\n" + indent);
+    })
+    .join("\n" + indent);
 };
 
-// --- HELPER: High-Fidelity ASCII Generator (No Blocks) ---
+// --- HELPER: High-Fidelity ASCII Generator ---
 const generateAsciiArt = (imageUrl, width = 60) => {
   return new Promise((resolve) => {
     if (!imageUrl) return resolve("");
@@ -66,8 +81,6 @@ const generateAsciiArt = (imageUrl, width = 60) => {
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-
-      // 0.5 aspect ratio correction
       const height = (img.height / img.width) * width * 0.5;
       canvas.width = width;
       canvas.height = height;
@@ -78,10 +91,8 @@ const generateAsciiArt = (imageUrl, width = 60) => {
 
       try {
         const data = ctx.getImageData(0, 0, width, height).data;
-
-        // Dense Ramp for EVERYTHING (Icons & Profile) - No Blocks
-        const chars = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
-
+        const chars =
+          "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
         let ascii = "";
         for (let y = 0; y < canvas.height; y++) {
           for (let x = 0; x < canvas.width; x++) {
@@ -91,7 +102,10 @@ const generateAsciiArt = (imageUrl, width = 60) => {
             const b = data[offset + 2];
             const alpha = data[offset + 3];
 
-            if (alpha < 20) { ascii += " "; continue; }
+            if (alpha < 20) {
+              ascii += " ";
+              continue;
+            }
 
             const avg = (r + g + b) / 3;
             // Invert index for this specific ramp (Dark -> Light)
@@ -104,7 +118,9 @@ const generateAsciiArt = (imageUrl, width = 60) => {
           ascii += "\x1b[0m\n";
         }
         resolve(ascii);
-      } catch (e) { resolve(""); }
+      } catch (e) {
+        resolve("");
+      }
     };
     img.onerror = () => resolve("");
   });
@@ -113,25 +129,25 @@ const generateAsciiArt = (imageUrl, width = 60) => {
 // --- FALLBACK ICON MAP ---
 const FALLBACK_ICONS = {
   "c++": "https://cdn.simpleicons.org/cplusplus/00599C",
-  "matlab": "https://cdn.simpleicons.org/matlab/0076A8",
+  matlab: "https://cdn.simpleicons.org/matlab/0076A8",
   "c#": "https://cdn.simpleicons.org/csharp/239120",
   "three.js": "https://cdn.simpleicons.org/threedotjs/FFFFFF",
-  "react": "https://cdn.simpleicons.org/react/61DAFB",
-  "python": "https://cdn.simpleicons.org/python/3776AB",
-  "javascript": "https://cdn.simpleicons.org/javascript/F7DF1E",
-  "linux": "https://cdn.simpleicons.org/linux/FCC624",
-  "git": "https://cdn.simpleicons.org/git/F05032",
-  "docker": "https://cdn.simpleicons.org/docker/2496ED",
-  "firebase": "https://cdn.simpleicons.org/firebase/FFCA28",
-  "arduino": "https://cdn.simpleicons.org/arduino/00979D",
-  "unity": "https://cdn.simpleicons.org/unity/FFFFFF",
-  "opencv": "https://cdn.simpleicons.org/opencv/5C3EE8",
-  "pytorch": "https://cdn.simpleicons.org/pytorch/EE4C2C",
-  "flask": "https://cdn.simpleicons.org/flask/FFFFFF",
-  "bash": "https://cdn.simpleicons.org/gnu-bash/FFFFFF",
-  "rust": "https://cdn.simpleicons.org/rust/FFFFFF",
-  "tailwindcss": "https://cdn.simpleicons.org/tailwindcss/06B6D4",
-  "dotnet": "https://cdn.simpleicons.org/dotnet/512BD4"
+  react: "https://cdn.simpleicons.org/react/61DAFB",
+  python: "https://cdn.simpleicons.org/python/3776AB",
+  javascript: "https://cdn.simpleicons.org/javascript/F7DF1E",
+  linux: "https://cdn.simpleicons.org/linux/FCC624",
+  git: "https://cdn.simpleicons.org/git/F05032",
+  docker: "https://cdn.simpleicons.org/docker/2496ED",
+  firebase: "https://cdn.simpleicons.org/firebase/FFCA28",
+  arduino: "https://cdn.simpleicons.org/arduino/00979D",
+  unity: "https://cdn.simpleicons.org/unity/FFFFFF",
+  opencv: "https://cdn.simpleicons.org/opencv/5C3EE8",
+  pytorch: "https://cdn.simpleicons.org/pytorch/EE4C2C",
+  flask: "https://cdn.simpleicons.org/flask/FFFFFF",
+  bash: "https://cdn.simpleicons.org/gnu-bash/FFFFFF",
+  rust: "https://cdn.simpleicons.org/rust/FFFFFF",
+  tailwindcss: "https://cdn.simpleicons.org/tailwindcss/06B6D4",
+  dotnet: "https://cdn.simpleicons.org/dotnet/512BD4",
 };
 
 export default function App() {
@@ -149,23 +165,18 @@ export default function App() {
   // --- Context Menu State ---
   const [contextMenu, setContextMenu] = useState(null);
 
-  // --- Refs for 3D objects ---
+  // 3D Refs
   const threeObjectsRef = useRef({
     camera: null,
     eventPlane: null,
     renderer: null,
   });
-
-  // Corners (Restored for logic/debug)
   const cornerTlRef = useRef(null);
   const cornerTrRef = useRef(null);
   const cornerBlRef = useRef(null);
   const cornerBrRef = useRef(null);
-
-  // --- POINTERS ---
   const redPointerRef = useRef(null);
   const greenPointerRef = useRef(null);
-
   const isDraggingOnTerminal = useRef(false);
   const selectionStartRef = useRef(null);
   const hoveredLinkRef = useRef(null);
@@ -248,75 +259,75 @@ export default function App() {
     if (!mountRef.current) return;
 
     const getTermCoords = (event) => {
-          const { camera, eventPlane } = threeObjectsRef.current;
-          const container = mountRef.current;
-          if (!camera || !eventPlane || !container) return null;
+      const { camera, eventPlane } = threeObjectsRef.current;
+      const container = mountRef.current;
+      if (!camera || !eventPlane || !container) return null;
 
-          const { clientWidth, clientHeight } = container;
+      const { clientWidth, clientHeight } = container;
 
-          // Ensure matrix is fresh for raycasting
-          eventPlane.updateMatrixWorld();
+      // Ensure matrix is fresh for raycasting
+      eventPlane.updateMatrixWorld();
 
-          const rect = container.getBoundingClientRect();
-          const offsetX = event.clientX - rect.left;
-          const offsetY = event.clientY - rect.top;
+      const rect = container.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
 
-          const mouse = new THREE.Vector2();
-          const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      const raycaster = new THREE.Raycaster();
 
-          // Calculate Normalized Device Coordinates
-          mouse.x = (offsetX / clientWidth) * 2 - 1;
-          mouse.y = -(offsetY / clientHeight) * 2 + 1;
+      // Calculate Normalized Device Coordinates
+      mouse.x = (offsetX / clientWidth) * 2 - 1;
+      mouse.y = -(offsetY / clientHeight) * 2 + 1;
 
-          raycaster.setFromCamera(mouse, camera);
-          const intersects = raycaster.intersectObject(eventPlane);
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(eventPlane);
 
-          if (intersects.length === 0) {
-            if (redPointerRef.current) redPointerRef.current.style.display = "none";
-            return null;
-          }
+      if (intersects.length === 0) {
+        if (redPointerRef.current) redPointerRef.current.style.display = "none";
+        return null;
+      }
 
-          const uv = intersects[0].uv;
-          const PADDING = 50;
-          const TERM_WIDTH = 1024;
-          const TERM_HEIGHT = 768;
+      const uv = intersects[0].uv;
+      const PADDING = 50;
+      const TERM_WIDTH = 1024;
+      const TERM_HEIGHT = 768;
 
-          const localX = uv.x * TERM_WIDTH;
-          const localY = (1 - uv.y) * TERM_HEIGHT;
+      const localX = uv.x * TERM_WIDTH;
+      const localY = (1 - uv.y) * TERM_HEIGHT;
 
-          const dims = terminalComponentRef.current?.getDimensions();
-          if (!dims) return null;
+      const dims = terminalComponentRef.current?.getDimensions();
+      if (!dims) return null;
 
-          const contentWidth = TERM_WIDTH - PADDING * 2;
-          const contentHeight = TERM_HEIGHT - PADDING * 2;
+      const contentWidth = TERM_WIDTH - PADDING * 2;
+      const contentHeight = TERM_HEIGHT - PADDING * 2;
 
-          // If fit() hasn't run correctly, dims.cols might be wrong, causing the drift.
-          // The fix in onWindowResize ensures dims.cols is accurate to the visual state.
-          const cellWidth = contentWidth / dims.cols;
-          const cellHeight = contentHeight / dims.rows;
+      // If fit() hasn't run correctly, dims.cols might be wrong, causing the drift.
+      // The fix in onWindowResize ensures dims.cols is accurate to the visual state.
+      const cellWidth = contentWidth / dims.cols;
+      const cellHeight = contentHeight / dims.rows;
 
-          // +0.5 Centering Fix
-          let col = Math.floor((localX - PADDING) / cellWidth + 0.5);
-          let row = Math.floor((localY - PADDING) / cellHeight);
+      // +0.5 Centering Fix
+      let col = Math.floor((localX - PADDING) / cellWidth + 0.5);
+      let row = Math.floor((localY - PADDING) / cellHeight);
 
-          col = Math.max(0, Math.min(col, dims.cols - 1));
-          row = Math.max(0, Math.min(row, dims.rows - 1));
+      col = Math.max(0, Math.min(col, dims.cols - 1));
+      row = Math.max(0, Math.min(row, dims.rows - 1));
 
-          // ... (Debug logic remains the same) ...
-          if (mouseDebug) {
-            const char = terminalComponentRef.current?.getChar(col, row);
-            console.log(`Hover: [${col}, ${row}] "${char}"`);
-            if (redPointerRef.current) {
-              const point = intersects[0].point.clone();
-              point.project(camera);
-              redPointerRef.current.style.display = "block";
-              redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * clientWidth}px`;
-              redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * clientHeight}px`;
-            }
-          }
+      // ... (Debug logic remains the same) ...
+      if (mouseDebug) {
+        const char = terminalComponentRef.current?.getChar(col, row);
+        console.log(`Hover: [${col}, ${row}] "${char}"`);
+        if (redPointerRef.current) {
+          const point = intersects[0].point.clone();
+          point.project(camera);
+          redPointerRef.current.style.display = "block";
+          redPointerRef.current.style.left = `${(point.x * 0.5 + 0.5) * clientWidth}px`;
+          redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * clientHeight}px`;
+        }
+      }
 
-          return { col, row, dims };
-        };
+      return { col, row, dims };
+    };
 
     const handleMouseDown = (event) => {
       if (event.isSynthetic) return;
@@ -446,7 +457,10 @@ export default function App() {
         setLoadingStatus("Loading command interpreter...");
         const WasmModule = await import("./wasm/engine.js");
         const engine = await WasmModule.default();
-        const processCommand = engine.cwrap("process_command", "string", ["string", "string"]);
+        const processCommand = engine.cwrap("process_command", "string", [
+          "string",
+          "string",
+        ]);
         setWasmEngine({ processCommand });
 
         setLoadingStatus("Contacting database...");
@@ -455,14 +469,14 @@ export default function App() {
         const iconsSnap = await getDocs(collection(db, "skill_icons"));
         let iconMap = { ...FALLBACK_ICONS };
         if (!iconsSnap.empty) {
-            iconsSnap.docs.forEach(doc => {
-                const d = doc.data();
-                Object.keys(d).forEach(key => {
-                    if (typeof d[key] === 'string' && d[key].startsWith('http')) {
-                        iconMap[key.toLowerCase()] = d[key];
-                    }
-                });
+          iconsSnap.docs.forEach((doc) => {
+            const d = doc.data();
+            Object.keys(d).forEach((key) => {
+              if (typeof d[key] === "string" && d[key].startsWith("http")) {
+                iconMap[key.toLowerCase()] = d[key];
+              }
             });
+          });
         }
 
         // 2. Fetch Data
@@ -473,125 +487,221 @@ export default function App() {
         const skillsSnap = await getDocs(collection(db, "skills"));
         const personalInfoSnap = await getDocs(collection(db, "personal_info"));
 
-        const info = !personalInfoSnap.empty ? personalInfoSnap.docs[0].data() : {};
+        const info = !personalInfoSnap.empty
+          ? personalInfoSnap.docs[0].data()
+          : {};
 
         // 3. Generate Profile Art (High Detail Mode)
         if (info.profile_picture_url) {
-             setLoadingStatus("Generating neural visual...");
-             // Increased width to 70 for better detail
-             ASCII_CACHE.profile = await generateAsciiArt(info.profile_picture_url, 70);
+          setLoadingStatus("Generating neural visual...");
+          // Increased width to 70 for better detail
+          ASCII_CACHE.profile = await generateAsciiArt(
+            info.profile_picture_url,
+            70,
+          );
         }
 
         const data = {};
 
         // --- ABOUT ---
-        const aboutDesc = wrapText(info.description || "Full Stack Developer.", TERMINAL_COLS);
+        const aboutDesc = wrapText(
+          info.description || "Full Stack Developer.",
+          TERMINAL_COLS,
+        );
         data["about"] = {
-            content: `\n[[PROFILE_ART]]\nNAME: ${info.name || "Matthew Nader"}\n\n${aboutDesc}`
+          content: `\n[[PROFILE_ART]]\nNAME: ${info.name || "Matthew Nader"}\n\n${aboutDesc}`,
         };
 
         // --- CONTACT ---
         const formatLink = (link) => {
-            if (!link || link === "N/A") return "N/A";
-            // Remove existing protocol if present to avoid double https://
-            const clean = link.replace(/^https?:\/\//, '');
-            return `https://${clean}`;
+          if (!link || link === "N/A") return "N/A";
+          // Remove existing protocol if present to avoid double https://
+          const clean = link.replace(/^https?:\/\//, "");
+          return `https://${clean}`;
         };
 
         data["contact"] = {
-            email: info.email || "N/A",
-            linkedin: formatLink(info.linkedin),
-            github_profile: formatLink(info.github)
+          email: info.email || "N/A",
+          linkedin: formatLink(info.linkedin),
+          github_profile: formatLink(info.github),
         };
 
         // --- EDUCATION ---
         const eduDoc = !educationSnap.empty ? educationSnap.docs[0].data() : {};
         data["education"] = {
-            degree: eduDoc.degree || "N/A",
-            institution: eduDoc.institution || "N/A",
-            graduation_date: eduDoc.graduation_date || "N/A"
+          degree: eduDoc.degree || "N/A",
+          institution: eduDoc.institution || "N/A",
+          graduation_date: eduDoc.graduation_date || "N/A",
         };
 
         // --- SKILLS (Fixed Layout & ASCII Icons) ---
         const skillsRaw = !skillsSnap.empty ? skillsSnap.docs[0].data() : {};
         const formattedSkills = {};
-        const skillKeys = ["languages", "frameworks_libraries", "tools_platforms", "concepts"];
+        const skillKeys = [
+          "languages",
+          "frameworks_libraries",
+          "tools_platforms",
+          "concepts",
+        ];
 
         setLoadingStatus("Compiling skill matrix...");
 
         for (const key of skillKeys) {
-            const val = skillsRaw[key];
-            let items = [];
-            if (val && typeof val === 'object' && !Array.isArray(val)) items = Object.values(val);
-            else if (Array.isArray(val)) items = val;
+          const val = skillsRaw[key];
+          let items = [];
+          if (val && typeof val === "object" && !Array.isArray(val))
+            items = Object.values(val);
+          else if (Array.isArray(val)) items = val;
 
-            const itemsFormatted = await Promise.all(items.map(async (item, index) => {
-                const lowerName = item.toLowerCase().trim();
-                const iconKey = Object.keys(iconMap).find(k => lowerName === k || lowerName.includes(k) || k.includes(lowerName));
-                const iconUrl = iconKey ? iconMap[iconKey] : null;
+          const itemsFormatted = await Promise.all(
+            items.map(async (item, index) => {
+              const lowerName = item.toLowerCase().trim();
+              const iconKey = Object.keys(iconMap).find(
+                (k) =>
+                  lowerName === k ||
+                  lowerName.includes(k) ||
+                  k.includes(lowerName),
+              );
+              const iconUrl = iconKey ? iconMap[iconKey] : null;
 
-                // VISUAL HACK: \b\b deletes the ", " that C++ forces between items
-                // We only apply this if it's NOT the first item
-                let prefix = index > 0 ? "\b\b\n" : "";
+              // VISUAL HACK: \b\b deletes the ", " that C++ forces between items
+              // We only apply this if it's NOT the first item
+              let prefix = index > 0 ? "\b\b\n" : "";
 
-                const separator = `\x1b[38;5;240m${"-".repeat(40)}\x1b[0m`;
-                let displayString = "";
+              const separator = `\x1b[38;5;240m${"-".repeat(40)}\x1b[0m`;
+              let displayString = "";
 
-                if (iconUrl) {
-                    // Increased width to 28 for better ASCII detail
-                    const ascii = await generateAsciiArt(iconUrl, 28);
-                    const placeholder = `[[ICON:${lowerName}]]`;
-                    ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
+              if (iconUrl) {
+                // Increased width to 28 for better ASCII detail
+                const ascii = await generateAsciiArt(iconUrl, 28);
+                const placeholder = `[[ICON:${lowerName}]]`;
+                ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
 
-                    displayString = `${prefix}${separator}\n${placeholder}\n   >> ${item}`;
-                } else {
-                     displayString = `${prefix}${separator}\n   >> ${item}`;
-                }
-                return displayString;
-            }));
+                displayString = `${prefix}${separator}\n${placeholder}\n   >> ${item}`;
+              } else {
+                displayString = `${prefix}${separator}\n   >> ${item}`;
+              }
+              return displayString;
+            }),
+          );
 
-            // SPACER HACK: Append \n to the LAST item to force a blank line before the NEXT category
-            if (itemsFormatted.length > 0) {
-                itemsFormatted[itemsFormatted.length - 1] += "\n";
-            }
+          // SPACER HACK: Append \n to the LAST item to force a blank line before the NEXT category
+          if (itemsFormatted.length > 0) {
+            itemsFormatted[itemsFormatted.length - 1] += "\n";
+          }
 
-            formattedSkills[key] = itemsFormatted.length > 0 ? itemsFormatted : ["N/A"];
+          formattedSkills[key] =
+            itemsFormatted.length > 0 ? itemsFormatted : ["N/A"];
         }
         data["skills"] = formattedSkills;
 
         // --- PROJECTS ---
-        data["projects"] = projectsSnap.docs.map(doc => {
-            const d = doc.data();
-            return {
-                title: d.title || "Untitled",
-                subtitle: d.subtitle || "",
-                description: wrapText(d.description || "", TERMINAL_COLS),
-                github: formatLink(d.github)
-            };
+        data["projects"] = projectsSnap.docs.map((doc) => {
+          const d = doc.data();
+
+          // 1. Visual Separator
+          const separator = `\x1b[38;5;240m${"-".repeat(TERMINAL_COLS)}\x1b[0m`;
+
+          // 2. Styled Title & Subtitle
+          // Wrap Title if it's too long
+          const rawTitle = d.title || "Untitled";
+          const wrappedTitle = wrapText(rawTitle, TERMINAL_COLS);
+
+          // \x1b[1;32m = Bold Green, \x1b[36m = Cyan
+          const title = `\n${separator}\n\x1b[1;32m${wrappedTitle}\x1b[0m`;
+          const subtitle = `\x1b[36m${d.subtitle || ""}\x1b[0m`;
+
+          // 3. Description Formatting
+          // We prepend \n to force it to the next line below "Desc:"
+          // We indent subsequent lines by 3 spaces to align nicely
+          const rawDesc = d.description || "";
+          const wrappedDesc = wrapText(rawDesc, TERMINAL_COLS, "   "); // 3 spaces indent
+          const description = `\n   ${wrappedDesc}`;
+
+          return {
+            title: title,
+            subtitle: subtitle,
+            description: description,
+            github: formatLink(d.github),
+          };
         });
 
-        // --- EXPERIENCE ---
-        data["experience"] = experienceSnap.docs.map(doc => {
-            const d = doc.data();
-            let descArray = Array.isArray(d.description) ? d.description : [d.description || ""];
-            // Wrap bullet points, slightly narrower to account for bullet indentation
-            descArray = descArray.map(line => wrapText(line, TERMINAL_COLS - 5));
-            return {
-                title: d.title || "N/A",
-                company: d.company || "N/A",
-                duration: d.duration || "N/A",
-                description: descArray
-            };
+        // --- EXPERIENCE (SMART DATES & SPACING) ---
+        data["experience"] = experienceSnap.docs.map((doc) => {
+          const d = doc.data();
+          const separator = `\x1b[38;5;240m${"-".repeat(TERMINAL_COLS)}\x1b[0m`;
+
+          const rawTitle = d.title || "N/A";
+          const rawCompany = d.company || "N/A";
+          const rawDuration = d.duration || "N/A";
+
+          // 1. Smart Header Calculation
+          // C++ format is: "%s at %s (%s)"
+          // We calculate the visual length of that resulting string
+          const fullLineLen =
+            rawTitle.length +
+            4 +
+            rawCompany.length +
+            2 +
+            rawDuration.length +
+            1; // 4=" at ", 2=" (", 1=")"
+          const titleCompanyLen = rawTitle.length + 4 + rawCompany.length;
+
+          let finalTitle = rawTitle;
+          let finalCompany = rawCompany;
+
+          if (fullLineLen <= TERMINAL_COLS) {
+            // Case 1: Everything fits on one line
+            // Do nothing, leave as is.
+          } else if (titleCompanyLen <= TERMINAL_COLS) {
+            // Case 2: Title + Company fits, but Date causes overflow
+            // Push Date to next line by adding newline to Company
+            finalCompany = `${rawCompany}\n`;
+          } else {
+            // Case 3: Title + Company is too long. Stack everything.
+            // Title
+            //  at Company
+            //  (Date)
+            finalTitle = `${rawTitle}\n`;
+            finalCompany = `${rawCompany}\n`;
+          }
+
+          // Apply Colors & Wrap individual components if they are massive (rare)
+          const title = `\n${separator}\n\x1b[1;32m${wrapText(finalTitle, TERMINAL_COLS)}\x1b[0m`;
+          const company = `\x1b[1;37m${wrapText(finalCompany, TERMINAL_COLS)}\x1b[0m`;
+          const duration = `\x1b[36m${d.duration || "N/A"}\x1b[0m`;
+
+          // 2. Description with Spacing
+          let descArray = Array.isArray(d.description)
+            ? d.description
+            : [d.description || ""];
+
+          // Filter empty lines
+          descArray = descArray.filter(
+            (line) => line && line.trim().length > 0,
+          );
+
+          // Wrap text AND add an extra newline for spacing between points
+          descArray = descArray.map((line) => {
+            return wrapText(line, TERMINAL_COLS - 4, "    ") + "\n";
+          });
+
+          return {
+            title: title,
+            company: company,
+            duration: duration,
+            description: descArray,
+          };
         });
 
         // --- AWARDS ---
-        data["awards"] = awardsSnap.docs.map(doc => {
-            const d = doc.data();
-            return {
-                award: d.award || "N/A",
-                event: d.event || "N/A",
-                date: d.date || "N/A"
-            };
+        data["awards"] = awardsSnap.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            award: d.award || "N/A",
+            event: d.event || "N/A",
+            date: d.date || "N/A",
+          };
         });
 
         console.log("Data loaded successfully");
@@ -896,30 +1006,30 @@ export default function App() {
     let rebuildClipPath = () => {};
 
     const onWindowResize = () => {
-          if (mountRef.current) {
-            const { clientWidth, clientHeight } = mountRef.current;
+      if (mountRef.current) {
+        const { clientWidth, clientHeight } = mountRef.current;
 
-            // Update Camera
-            camera.aspect = clientWidth / clientHeight;
-            camera.updateProjectionMatrix();
+        // Update Camera
+        camera.aspect = clientWidth / clientHeight;
+        camera.updateProjectionMatrix();
 
-            // Update Renderers
-            webglRenderer.setSize(clientWidth, clientHeight);
-            cssRenderer.setSize(clientWidth, clientHeight);
+        // Update Renderers
+        webglRenderer.setSize(clientWidth, clientHeight);
+        cssRenderer.setSize(clientWidth, clientHeight);
 
-            // Force CSS Renderer to match WebGL exactly
-            cssRenderer.domElement.style.width = `${clientWidth}px`;
-            cssRenderer.domElement.style.height = `${clientHeight}px`;
+        // Force CSS Renderer to match WebGL exactly
+        cssRenderer.domElement.style.width = `${clientWidth}px`;
+        cssRenderer.domElement.style.height = `${clientHeight}px`;
 
-            // Debounce heavy operations (ClipPath and Terminal Fit)
-            if (resizeTimer) clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-              rebuildClipPath();
-              // --- FIX: Recalculate terminal grid on resize ---
-              terminalComponentRef.current?.fit();
-            }, 150);
-          }
-        };
+        // Debounce heavy operations (ClipPath and Terminal Fit)
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          rebuildClipPath();
+          // --- FIX: Recalculate terminal grid on resize ---
+          terminalComponentRef.current?.fit();
+        }, 150);
+      }
+    };
     window.addEventListener("resize", onWindowResize);
 
     const eventPlane = new THREE.Mesh(

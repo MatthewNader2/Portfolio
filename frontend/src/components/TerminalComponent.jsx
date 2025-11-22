@@ -184,6 +184,7 @@ export const TerminalComponent = forwardRef(
         term.current = new Terminal({
           fontFamily: '"Pixelmix", monospace',
           fontSize: 16,
+          lineHeight: 1.5,
           cursorBlink: true,
           theme: {
             background: "rgba(0, 0, 0, 0)",
@@ -194,7 +195,7 @@ export const TerminalComponent = forwardRef(
           },
           allowTransparency: true,
           // FIX: Force a small right margin in the renderer to prevent text touching scrollbar
-          rightPadding: 20
+          rightPadding: 20,
         });
 
         term.current.loadAddon(fitAddon.current);
@@ -230,10 +231,6 @@ export const TerminalComponent = forwardRef(
 
         term.current.writeln("Welcome to Matthew's Interactive Portfolio!");
         term.current.writeln("Type 'help' for a list of commands.");
-        term.current.writeln("Type 'debug mouse' to toggle mouse debugging.");
-        term.current.writeln("Links are now fully functional:");
-        // --- FIX: Removed GitHub Link ---
-        term.current.writeln(" - https://www.google.com");
         term.current.write("> ");
 
         // --- FIX: Wait for fonts to load before fitting ---
