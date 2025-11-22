@@ -223,16 +223,14 @@ export default function App() {
   const terminalComponentRef = useRef(null);
 
   // --- State Management ---
+  const [wasmEngine, setWasmEngine] = useState(null);
+  const [portfolioDataString, setPortfolioDataString] = useState("");
   const [mouseDebug, setMouseDebug] = useState(false);
 
-  // --- Refs for Logic (Fixes stale closure issues) ---
-  const wasmEngineRef = useRef(null);
-  const portfolioDataRef = useRef("");
-  const isBootingRef = useRef(true); // Tracks booting for the command handler
-
-  // --- Loading & Transition State (For UI) ---
+  // --- Loading & Transition State ---
   const [isBooting, setIsBooting] = useState(true);
   const [bootFinished, setBootFinished] = useState(false);
+
   // --- Settings State ---
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
@@ -285,14 +283,10 @@ export default function App() {
 
   // --- COMMAND HANDLER ---
   const handleTerminalCommand = (command) => {
-    // Check the Ref, not the state, to ensure we have the live value
-    if (isBootingRef.current) return;
+    // Prevent commands during boot
+    if (isBooting) return;
 
-    if (
-      !wasmEngineRef.current ||
-      !portfolioDataRef.current ||
-      !terminalComponentRef.current
-    ) {
+    if (!wasmEngine || !portfolioDataString || !terminalComponentRef.current) {
       terminalComponentRef.current?.write("\r\nSystem not ready. Please wait.");
       terminalComponentRef.current?.prompt();
       return;
@@ -315,10 +309,7 @@ export default function App() {
       return;
     }
 
-    let result = wasmEngineRef.current.processCommand(
-      trimmedCommand,
-      portfolioDataRef.current,
-    );
+    let result = wasmEngine.processCommand(trimmedCommand, portfolioDataString);
 
     if (result === "COMMAND_CLEAR") {
       terminalComponentRef.current.clear();
@@ -535,7 +526,7 @@ export default function App() {
           "string",
           "string",
         ]);
-        wasmEngineRef.current = { processCommand };
+        setWasmEngine({ processCommand });
 
         // 2. Start Boot Sequence Effect (Visuals)
         // We run this in parallel with data fetching, but await it before finishing
@@ -728,14 +719,14 @@ export default function App() {
           };
         });
 
-        portfolioDataRef.current = JSON.stringify(data);
+        setPortfolioDataString(JSON.stringify(data));
+
         // Wait for the visual boot sequence to finish if it hasn't already
         await bootPromise;
 
-        // Unlock the system
-        isBootingRef.current = false; // Allow commands
-        setBootFinished(true); // Trigger camera animation
-        setIsBooting(false); // Update UI
+        // Trigger the camera pull-back
+        setBootFinished(true);
+        setIsBooting(false);
       } catch (error) {
         console.error("Initialization failed:", error);
         terminalComponentRef.current?.write(
@@ -784,20 +775,15 @@ export default function App() {
       1000,
     );
 
-    // --- CAMERA TRANSITION CONFIGURATION ---
-    // 1. Start Position: Calculated from your "Perfect TV Transform" debug values
-    const startCamPos = new THREE.Vector3(-0.012, 0.19, 0.33);
-    // 2. Start LookAt: We must look at this point to match the debug angle
-    const startLookAt = new THREE.Vector3(-0.012, 0.079, -0.485);
-
-    // 3. End Position: The original standard view
+    // --- CAMERA TRANSITION LOGIC ---
+    // Start Position: Very close to the screen (simulating full screen)
+    // End Position: The standard room view
+    const startCamPos = new THREE.Vector3(0, 0.15, 0.3);
     const endCamPos = new THREE.Vector3(0, 0.1, 0.7);
-    // 4. End LookAt: The original standard focus
-    const endLookAt = new THREE.Vector3(0, 0, 0);
 
-    // Initialize Camera
+    // Initialize at start position
     camera.position.copy(startCamPos);
-    camera.lookAt(startLookAt);
+    camera.lookAt(0, 0, 0);
 
     const webglRenderer = new WebGLRenderer({ antialias: true, alpha: true });
     webglRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -1119,8 +1105,6 @@ export default function App() {
         if (c.isMesh) {
           if (meshIndex === 0 || meshIndex === 2) {
             c.visible = false;
-            if (c.geometry) c.geometry.dispose();
-            if (c.material) c.material.dispose();
           } else {
             c.material.metalness = 0.4;
             c.material.roughness = 0.6;
@@ -1232,8 +1216,7 @@ export default function App() {
 
       // --- ANIMATION STATE ---
       let transitionProgress = 0;
-      const transitionSpeed = 0.015;
-      const currentLookAt = new THREE.Vector3().copy(startLookAt);
+      const transitionSpeed = 0.015; // Adjust for speed of "pull back"
 
       function animate() {
         raf = requestAnimationFrame(animate);
@@ -1249,15 +1232,10 @@ export default function App() {
           // Cubic Ease Out for smooth braking
           const t = 1 - Math.pow(1 - transitionProgress, 3);
 
-          // Interpolate Position
           camera.position.lerpVectors(startCamPos, endCamPos, t);
 
-          // Interpolate LookAt Target
-          currentLookAt.lerpVectors(startLookAt, endLookAt, t);
-          camera.lookAt(currentLookAt);
-        } else if (transitionProgress >= 1) {
-          // Ensure we lock to the end state exactly
-          camera.lookAt(endLookAt);
+          // CRITICAL FIX: Keep looking at the center of the TV while moving
+          camera.lookAt(0, 0, 0);
         }
 
         // --- SYNC SETTINGS FOR PARTICLES ---
@@ -1297,7 +1275,7 @@ export default function App() {
       while (mount.firstChild) mount.removeChild(mount.firstChild);
       window.removeEventListener("resize", onWindowResize);
     };
-  }, []);
+  }, []); // Empty dependency array ensures scene loads once
 
   // --- SYNC STATE TO WINDOW FOR ANIMATION LOOP ---
   useEffect(() => {

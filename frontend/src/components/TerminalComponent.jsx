@@ -16,7 +16,7 @@ export const TerminalComponent = forwardRef(
     const term = useRef(null);
     const fitAddon = useRef(new FitAddon());
 
-    // Restored Debug Pointers
+    // Debug Pointers
     const bluePointerRef = useRef(null);
     const yellowPointerRef = useRef(null);
 
@@ -29,7 +29,6 @@ export const TerminalComponent = forwardRef(
       tabPressCount: 0,
     });
 
-    // Restored "debug" to available commands
     const availableCommands = ["cat", "echo", "help", "clear", "cls", "debug"];
     const availableSections = [
       "about",
@@ -208,10 +207,11 @@ export const TerminalComponent = forwardRef(
           return true;
         });
 
-        term.current.writeln("Welcome to Matthew's Interactive Portfolio!");
-        term.current.writeln("Type 'help' for a list of commands.");
-        term.current.write("> ");
+        // --- MODIFICATION: Removed hardcoded welcome message ---
+        // The App.jsx now handles the "Boot Sequence" and writes the welcome message
+        // manually after the fake loading is done.
 
+        // Ensure fonts are loaded before fitting
         document.fonts.ready.then(() => {
           fitAddon.current.fit();
         });
@@ -321,7 +321,7 @@ export const TerminalComponent = forwardRef(
       }
     }, [onCommand]);
 
-    // --- RESTORED: Mouse Debugging Logic ---
+    // Mouse Debugging Logic
     useEffect(() => {
       const target = term.current?.element.querySelector(".xterm-viewport");
       if (!target) return;
