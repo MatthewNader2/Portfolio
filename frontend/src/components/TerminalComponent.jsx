@@ -1,5 +1,3 @@
-// --- START OF FILE TerminalComponent.jsx ---
-
 import React, {
   useEffect,
   useRef,
@@ -12,14 +10,16 @@ import "xterm/css/xterm.css";
 
 export const TerminalComponent = forwardRef(
   ({ onCommand, mouseDebug }, ref) => {
+    // --- Refs ---
     const terminalContainerRef = useRef(null);
     const term = useRef(null);
     const fitAddon = useRef(new FitAddon());
 
-    // Debug Pointers
+    // --- Debug Pointers ---
     const bluePointerRef = useRef(null);
     const yellowPointerRef = useRef(null);
 
+    // --- Internal State ---
     const state = useRef({
       currentLine: "",
       cursorIndex: 0,
@@ -29,6 +29,7 @@ export const TerminalComponent = forwardRef(
       tabPressCount: 0,
     });
 
+    // --- Autocomplete Data ---
     const availableCommands = ["cat", "echo", "help", "clear", "cls", "debug"];
     const availableSections = [
       "about",
@@ -39,6 +40,8 @@ export const TerminalComponent = forwardRef(
       "contact",
       "awards",
     ];
+
+    // --- Helper Functions ---
 
     const redrawLine = () => {
       if (!term.current) return;
@@ -77,6 +80,7 @@ export const TerminalComponent = forwardRef(
       redrawLine();
     };
 
+    // --- Exposed Methods (Parent Interface) ---
     useImperativeHandle(ref, () => ({
       write: (text) => term.current?.write(text.replace(/\r?\n/g, "\r\n")),
       clear: () => term.current?.clear(),
@@ -87,14 +91,17 @@ export const TerminalComponent = forwardRef(
         term.current
           ? { cols: term.current.cols, rows: term.current.rows }
           : null,
+
       select: (col, row, length) => {
         if (!term.current) return;
         const buffer = term.current.buffer.active;
         const actualRow = row + buffer.viewportY;
         term.current.select(col, actualRow, length);
       },
+
       clearSelection: () => term.current?.clearSelection(),
       getSelection: () => term.current?.getSelection(),
+
       selectWordAt: (col, row) => {
         if (!term.current) return;
         const buffer = term.current.buffer.active;
@@ -117,13 +124,16 @@ export const TerminalComponent = forwardRef(
         }
         term.current.select(start, actualRow, end - start);
       },
+
       selectLineAt: (row) => {
         if (!term.current) return;
         const buffer = term.current.buffer.active;
         const actualRow = row + buffer.viewportY;
         term.current.select(0, actualRow, term.current.cols);
       },
+
       paste: (text) => handleInputText(text),
+
       getChar: (col, row) => {
         const buffer = term.current?.buffer.active;
         if (!buffer) return null;
@@ -131,6 +141,7 @@ export const TerminalComponent = forwardRef(
         const line = buffer.getLine(actualRow);
         return line?.getCell(col)?.getChars() || null;
       },
+
       getLinkAt: (col, row) => {
         if (!term.current) return null;
         const buffer = term.current.buffer.active;
@@ -149,12 +160,14 @@ export const TerminalComponent = forwardRef(
         }
         return null;
       },
+
       getViewportBounds: () => {
         const target = term.current?.element.querySelector(".xterm-viewport");
         return target?.getBoundingClientRect();
       },
     }));
 
+    // --- Terminal Initialization ---
     useEffect(() => {
       if (terminalContainerRef.current && !term.current) {
         const completionSound = new Audio("/assets/bell.oga");
@@ -180,6 +193,7 @@ export const TerminalComponent = forwardRef(
         term.current.open(terminalContainerRef.current);
         term.current.focus();
 
+        // Custom Key Handler (Copy/Paste)
         term.current.attachCustomKeyEventHandler((arg) => {
           if (arg.type !== "keydown") return true;
           if (arg.ctrlKey && arg.key === "c") {
@@ -196,26 +210,18 @@ export const TerminalComponent = forwardRef(
           ) {
             navigator.clipboard
               .readText()
-              .then((text) => {
-                handleInputText(text);
-              })
-              .catch((err) => {
-                console.error("Paste failed:", err);
-              });
+              .then((text) => handleInputText(text))
+              .catch((err) => console.error("Paste failed:", err));
             return false;
           }
           return true;
         });
 
-        // --- MODIFICATION: Removed hardcoded welcome message ---
-        // The App.jsx now handles the "Boot Sequence" and writes the welcome message
-        // manually after the fake loading is done.
-
-        // Ensure fonts are loaded before fitting
         document.fonts.ready.then(() => {
           fitAddon.current.fit();
         });
 
+        // Input Logic
         term.current.onKey(({ key, domEvent }) => {
           if (domEvent.ctrlKey || domEvent.altKey || domEvent.metaKey) return;
 
@@ -237,6 +243,7 @@ export const TerminalComponent = forwardRef(
               s.suggestion = "";
               s.historyIndex = -1;
               break;
+
             case "Backspace":
               if (s.cursorIndex > 0) {
                 s.currentLine =
@@ -246,6 +253,7 @@ export const TerminalComponent = forwardRef(
                 redrawLine();
               }
               break;
+
             case "Delete":
               if (s.cursorIndex < s.currentLine.length) {
                 s.currentLine =
@@ -254,12 +262,14 @@ export const TerminalComponent = forwardRef(
                 redrawLine();
               }
               break;
+
             case "ArrowLeft":
               if (s.cursorIndex > 0) {
                 s.cursorIndex--;
                 redrawLine();
               }
               break;
+
             case "ArrowRight":
               if (s.suggestion && s.cursorIndex === s.currentLine.length) {
                 s.currentLine += s.suggestion;
@@ -269,6 +279,7 @@ export const TerminalComponent = forwardRef(
               }
               redrawLine();
               break;
+
             case "Tab":
               if (s.suggestion) {
                 s.currentLine += s.suggestion;
@@ -294,6 +305,7 @@ export const TerminalComponent = forwardRef(
                 s.tabPressCount++;
               }
               break;
+
             case "ArrowUp":
               if (s.historyIndex < s.history.length - 1) {
                 s.historyIndex++;
@@ -302,6 +314,7 @@ export const TerminalComponent = forwardRef(
                 redrawLine();
               }
               break;
+
             case "ArrowDown":
               if (s.historyIndex >= 0) {
                 s.historyIndex--;
@@ -314,6 +327,7 @@ export const TerminalComponent = forwardRef(
               }
               redrawLine();
               break;
+
             default:
               if (key.length === 1) handleInputText(key);
           }
@@ -321,7 +335,7 @@ export const TerminalComponent = forwardRef(
       }
     }, [onCommand]);
 
-    // Mouse Debugging Logic
+    // --- Mouse Debugging Logic ---
     useEffect(() => {
       const target = term.current?.element.querySelector(".xterm-viewport");
       if (!target) return;

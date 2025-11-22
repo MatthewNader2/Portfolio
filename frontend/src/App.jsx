@@ -1,5 +1,3 @@
-// --- START OF FILE App.jsx ---
-
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as THREE from "three";
@@ -16,6 +14,8 @@ import Stats from "stats.js";
 // --- Firebase ---
 import { db } from "./firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
+
+// --- Components & Assets ---
 import { TerminalComponent } from "./components/TerminalComponent";
 import backgroundUrl from "./assets/background.jpg";
 
@@ -35,10 +35,33 @@ const GearIcon = () => (
   </svg>
 );
 
-// --- HELPER: Strip ANSI Codes ---
+const FALLBACK_ICONS = {
+  "c++": "https://cdn.simpleicons.org/cplusplus/00599C",
+  matlab: "https://cdn.simpleicons.org/matlab/0076A8",
+  "c#": "https://cdn.simpleicons.org/csharp/239120",
+  "three.js": "https://cdn.simpleicons.org/threedotjs/FFFFFF",
+  react: "https://cdn.simpleicons.org/react/61DAFB",
+  python: "https://cdn.simpleicons.org/python/3776AB",
+  javascript: "https://cdn.simpleicons.org/javascript/F7DF1E",
+  linux: "https://cdn.simpleicons.org/linux/FCC624",
+  git: "https://cdn.simpleicons.org/git/F05032",
+  docker: "https://cdn.simpleicons.org/docker/2496ED",
+  firebase: "https://cdn.simpleicons.org/firebase/FFCA28",
+  arduino: "https://cdn.simpleicons.org/arduino/00979D",
+  unity: "https://cdn.simpleicons.org/unity/FFFFFF",
+  opencv: "https://cdn.simpleicons.org/opencv/5C3EE8",
+  pytorch: "https://cdn.simpleicons.org/pytorch/EE4C2C",
+  flask: "https://cdn.simpleicons.org/flask/FFFFFF",
+  bash: "https://cdn.simpleicons.org/gnu-bash/FFFFFF",
+  rust: "https://cdn.simpleicons.org/rust/FFFFFF",
+  tailwindcss: "https://cdn.simpleicons.org/tailwindcss/06B6D4",
+  dotnet: "https://cdn.simpleicons.org/dotnet/512BD4",
+};
+
+// --- HELPERS ---
+
 const stripAnsi = (str) => str.replace(/\x1b\[[0-9;]*m/g, "");
 
-// --- HELPER: Robust Text Wrapper ---
 const wrapText = (text, maxWidth, indent = "") => {
   if (!text) return "";
   text = text.trim();
@@ -67,7 +90,6 @@ const wrapText = (text, maxWidth, indent = "") => {
     .join("\n" + indent);
 };
 
-// --- HELPER: High-Fidelity ASCII Generator ---
 const generateAsciiArt = (imageUrl, width = 60) => {
   return new Promise((resolve) => {
     if (!imageUrl) return resolve("");
@@ -115,36 +137,10 @@ const generateAsciiArt = (imageUrl, width = 60) => {
   });
 };
 
-// --- FALLBACK ICON MAP ---
-const FALLBACK_ICONS = {
-  "c++": "https://cdn.simpleicons.org/cplusplus/00599C",
-  matlab: "https://cdn.simpleicons.org/matlab/0076A8",
-  "c#": "https://cdn.simpleicons.org/csharp/239120",
-  "three.js": "https://cdn.simpleicons.org/threedotjs/FFFFFF",
-  react: "https://cdn.simpleicons.org/react/61DAFB",
-  python: "https://cdn.simpleicons.org/python/3776AB",
-  javascript: "https://cdn.simpleicons.org/javascript/F7DF1E",
-  linux: "https://cdn.simpleicons.org/linux/FCC624",
-  git: "https://cdn.simpleicons.org/git/F05032",
-  docker: "https://cdn.simpleicons.org/docker/2496ED",
-  firebase: "https://cdn.simpleicons.org/firebase/FFCA28",
-  arduino: "https://cdn.simpleicons.org/arduino/00979D",
-  unity: "https://cdn.simpleicons.org/unity/FFFFFF",
-  opencv: "https://cdn.simpleicons.org/opencv/5C3EE8",
-  pytorch: "https://cdn.simpleicons.org/pytorch/EE4C2C",
-  flask: "https://cdn.simpleicons.org/flask/FFFFFF",
-  bash: "https://cdn.simpleicons.org/gnu-bash/FFFFFF",
-  rust: "https://cdn.simpleicons.org/rust/FFFFFF",
-  tailwindcss: "https://cdn.simpleicons.org/tailwindcss/06B6D4",
-  dotnet: "https://cdn.simpleicons.org/dotnet/512BD4",
-};
-
-// --- HELPER: Boot Sequence Simulator ---
 const runBootSequence = async (terminal) => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const write = (text) => terminal.write(text);
 
-  // Clear initial welcome message for the boot sequence
   terminal.clear();
 
   write(
@@ -190,13 +186,11 @@ const runBootSequence = async (terminal) => {
     "After this operation, 1024 KB of additional disk space will be used.\r\n",
   );
 
-  // Progress Bar Simulation
   const totalSteps = 20;
   for (let i = 0; i <= totalSteps; i++) {
     const percent = Math.round((i / totalSteps) * 100);
     const filled = "#".repeat(i);
     const empty = ".".repeat(totalSteps - i);
-    // \r returns to start of line to overwrite
     write(`\rProgress: [${filled}${empty}] ${percent}%`);
     await sleep(Math.random() * 100 + 20);
   }
@@ -217,33 +211,26 @@ const runBootSequence = async (terminal) => {
   terminal.prompt();
 };
 
+// --- MAIN COMPONENT ---
+
 export default function App() {
   const mountRef = useRef(null);
   const terminalElRef = useRef(null);
   const terminalComponentRef = useRef(null);
 
-  // --- State Management ---
+  // --- State ---
   const [mouseDebug, setMouseDebug] = useState(false);
-
-  // --- Refs for Logic (Fixes stale closure issues) ---
-  const wasmEngineRef = useRef(null);
-  const portfolioDataRef = useRef("");
-  const isBootingRef = useRef(true); // Tracks booting for the command handler
-
-  // --- Loading & Transition State (For UI) ---
   const [isBooting, setIsBooting] = useState(true);
   const [bootFinished, setBootFinished] = useState(false);
-  // --- Settings State ---
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({
-    particles: true,
-    glitch: true,
-  });
-
-  // --- Context Menu State ---
+  const [settings, setSettings] = useState({ particles: true, glitch: true });
   const [contextMenu, setContextMenu] = useState(null);
 
-  // 3D Refs
+  // --- Refs (Logic & 3D) ---
+  const wasmEngineRef = useRef(null);
+  const portfolioDataRef = useRef("");
+  const isBootingRef = useRef(true);
+
   const threeObjectsRef = useRef({
     camera: null,
     eventPlane: null,
@@ -259,12 +246,11 @@ export default function App() {
   const selectionStartRef = useRef(null);
   const hoveredLinkRef = useRef(null);
 
-  // --- CONTEXT MENU ACTIONS ---
+  // --- Handlers ---
+
   const handleCopy = async () => {
     const text = terminalComponentRef.current?.getSelection();
-    if (text) {
-      await navigator.clipboard.writeText(text);
-    }
+    if (text) await navigator.clipboard.writeText(text);
     setContextMenu(null);
   };
 
@@ -283,9 +269,7 @@ export default function App() {
     setContextMenu({ x: event.clientX, y: event.clientY });
   };
 
-  // --- COMMAND HANDLER ---
   const handleTerminalCommand = (command) => {
-    // Check the Ref, not the state, to ensure we have the live value
     if (isBootingRef.current) return;
 
     if (
@@ -329,13 +313,12 @@ export default function App() {
       result = result.replace(/\[\[ICON:(.*?)\]\]/g, (match, skillKey) => {
         return ASCII_CACHE.icons[skillKey] || "";
       });
-
       terminalComponentRef.current.write(result);
       terminalComponentRef.current.prompt();
     }
   };
 
-  // --- MOUSE INTERACTION ---
+  // --- Mouse Interaction (Raycasting) ---
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -398,7 +381,6 @@ export default function App() {
           redPointerRef.current.style.top = `${-(point.y * 0.5 - 0.5) * clientHeight}px`;
         }
       }
-
       return { col, row, dims };
     };
 
@@ -443,7 +425,6 @@ export default function App() {
           coords.col,
           coords.row,
         );
-
         if (link) {
           document.body.classList.add("force-pointer");
           document.body.classList.remove("force-text");
@@ -488,7 +469,6 @@ export default function App() {
         const length = endIdx - startIdx + 1;
         const sRow = Math.floor(startIdx / dims.cols);
         const sCol = startIdx % dims.cols;
-
         terminalComponentRef.current?.select(sCol, sRow, length);
       }
     };
@@ -524,7 +504,7 @@ export default function App() {
     };
   }, [mouseDebug, contextMenu]);
 
-  // --- DATA INITIALIZATION & BOOT SEQUENCE ---
+  // --- Data Initialization ---
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -537,8 +517,7 @@ export default function App() {
         ]);
         wasmEngineRef.current = { processCommand };
 
-        // 2. Start Boot Sequence Effect (Visuals)
-        // We run this in parallel with data fetching, but await it before finishing
+        // 2. Start Boot Sequence (Visuals)
         const bootPromise = runBootSequence(terminalComponentRef.current);
 
         // 3. Fetch Data
@@ -574,7 +553,6 @@ export default function App() {
         }
 
         const data = {};
-
         const aboutDesc = wrapText(
           info.description || "Full Stack Developer.",
           TERMINAL_COLS,
@@ -662,7 +640,6 @@ export default function App() {
           const rawDesc = d.description || "";
           const wrappedDesc = wrapText(rawDesc, TERMINAL_COLS, "   ");
           const description = `\n   ${wrappedDesc}`;
-
           return {
             title: title,
             subtitle: subtitle,
@@ -707,9 +684,9 @@ export default function App() {
           descArray = descArray.filter(
             (line) => line && line.trim().length > 0,
           );
-          descArray = descArray.map((line) => {
-            return wrapText(line, TERMINAL_COLS - 4, "    ") + "\n";
-          });
+          descArray = descArray.map(
+            (line) => wrapText(line, TERMINAL_COLS - 4, "    ") + "\n",
+          );
 
           return {
             title: title,
@@ -729,13 +706,11 @@ export default function App() {
         });
 
         portfolioDataRef.current = JSON.stringify(data);
-        // Wait for the visual boot sequence to finish if it hasn't already
         await bootPromise;
 
-        // Unlock the system
-        isBootingRef.current = false; // Allow commands
-        setBootFinished(true); // Trigger camera animation
-        setIsBooting(false); // Update UI
+        isBootingRef.current = false;
+        setBootFinished(true);
+        setIsBooting(false);
       } catch (error) {
         console.error("Initialization failed:", error);
         terminalComponentRef.current?.write(
@@ -744,11 +719,10 @@ export default function App() {
       }
     };
 
-    // Small delay to ensure Terminal component is mounted before writing
     setTimeout(initialize, 100);
   }, []);
 
-  // --- 3D RENDER LOOP & FEATURES ---
+  // --- 3D Render Loop ---
   useEffect(() => {
     if (!mountRef.current || !terminalElRef.current) return;
 
@@ -784,18 +758,12 @@ export default function App() {
       1000,
     );
 
-    // --- CAMERA TRANSITION CONFIGURATION ---
-    // 1. Start Position: Calculated from your "Perfect TV Transform" debug values
+    // Camera Transition Config
     const startCamPos = new THREE.Vector3(-0.012, 0.19, 0.33);
-    // 2. Start LookAt: We must look at this point to match the debug angle
     const startLookAt = new THREE.Vector3(-0.012, 0.079, -0.485);
-
-    // 3. End Position: The original standard view
     const endCamPos = new THREE.Vector3(0, 0.1, 0.7);
-    // 4. End LookAt: The original standard focus
     const endLookAt = new THREE.Vector3(0, 0, 0);
 
-    // Initialize Camera
     camera.position.copy(startCamPos);
     camera.lookAt(startLookAt);
 
@@ -833,7 +801,7 @@ export default function App() {
     dl.position.set(5, 5, 5);
     scene.add(dl);
 
-    // --- PARTICLES (Dust Style) ---
+    // Particles
     const particleCount = 600;
     const particleGeo = new THREE.DodecahedronGeometry(0.008, 0);
     const particleMat = new THREE.MeshBasicMaterial({
@@ -865,7 +833,7 @@ export default function App() {
     particleMesh.instanceColor.needsUpdate = true;
     const dummy = new THREE.Object3D();
 
-    // --- LOADERS ---
+    // Loaders
     const ktx2Loader = new KTX2Loader().setTranscoderPath("/basis/");
     const gltfLoader = new GLTFLoader();
     gltfLoader.setKTX2Loader(ktx2Loader);
@@ -874,7 +842,7 @@ export default function App() {
 
     const RASTER_SCALE = 0.5;
 
-    // --- HELPER FUNCTIONS (3D) ---
+    // --- 3D Helper Functions (Occlusion Logic) ---
     function worldToScreenXY(vWorld, camera, canvasRect) {
       const ndc = vWorld.clone().project(camera);
       const x = (ndc.x * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
@@ -1033,7 +1001,6 @@ export default function App() {
         meshToProject.localToWorld(a);
         meshToProject.localToWorld(b);
         meshToProject.localToWorld(c);
-
         projectedTris.push([
           worldToScreenXY(a, camera, canvasRect),
           worldToScreenXY(b, camera, canvasRect),
@@ -1085,16 +1052,12 @@ export default function App() {
     const onWindowResize = () => {
       if (mountRef.current) {
         const { clientWidth, clientHeight } = mountRef.current;
-
         camera.aspect = clientWidth / clientHeight;
         camera.updateProjectionMatrix();
-
         webglRenderer.setSize(clientWidth, clientHeight);
         cssRenderer.setSize(clientWidth, clientHeight);
-
         cssRenderer.domElement.style.width = `${clientWidth}px`;
         cssRenderer.domElement.style.height = `${clientHeight}px`;
-
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
           rebuildClipPath();
@@ -1113,7 +1076,6 @@ export default function App() {
 
     gltfLoader.load("/crt_tv_basis.glb", async (gltf) => {
       const tv = gltf.scene;
-
       let meshIndex = 0;
       tv.traverse((c) => {
         if (c.isMesh) {
@@ -1180,7 +1142,6 @@ export default function App() {
       function updateTerminalTransform() {
         const termW = 1024,
           termH = 768;
-
         if (!screenMesh || !screenMesh.geometry) return;
 
         screenMesh.updateWorldMatrix(true, false);
@@ -1230,7 +1191,6 @@ export default function App() {
         eventPlane.updateMatrixWorld();
       }
 
-      // --- ANIMATION STATE ---
       let transitionProgress = 0;
       const transitionSpeed = 0.015;
       const currentLookAt = new THREE.Vector3().copy(startLookAt);
@@ -1241,26 +1201,19 @@ export default function App() {
 
         updateTerminalTransform();
 
-        // --- CAMERA TRANSITION ---
+        // Camera Transition
         if (window.bootSequenceFinished && transitionProgress < 1) {
           transitionProgress += transitionSpeed;
           if (transitionProgress > 1) transitionProgress = 1;
-
-          // Cubic Ease Out for smooth braking
           const t = 1 - Math.pow(1 - transitionProgress, 3);
-
-          // Interpolate Position
           camera.position.lerpVectors(startCamPos, endCamPos, t);
-
-          // Interpolate LookAt Target
           currentLookAt.lerpVectors(startLookAt, endLookAt, t);
           camera.lookAt(currentLookAt);
         } else if (transitionProgress >= 1) {
-          // Ensure we lock to the end state exactly
           camera.lookAt(endLookAt);
         }
 
-        // --- SYNC SETTINGS FOR PARTICLES ---
+        // Sync Particles
         const currentSettings = window.currentSettings || { particles: true };
         particleMesh.visible = currentSettings.particles;
 
@@ -1299,12 +1252,11 @@ export default function App() {
     };
   }, []);
 
-  // --- SYNC STATE TO WINDOW FOR ANIMATION LOOP ---
+  // --- Sync State ---
   useEffect(() => {
     window.bootSequenceFinished = bootFinished;
   }, [bootFinished]);
 
-  // --- SYNC SETTINGS (UI to DOM) ---
   useEffect(() => {
     window.currentSettings = settings;
     if (terminalElRef.current) {
@@ -1329,7 +1281,7 @@ export default function App() {
         backgroundColor: "#000",
       }}
     >
-      {/* --- DEBUG POINTERS --- */}
+      {/* Debug Pointers */}
       <div
         ref={redPointerRef}
         style={{
@@ -1359,7 +1311,7 @@ export default function App() {
         }}
       />
 
-      {/* --- UI LAYER --- */}
+      {/* UI Layer */}
       <div
         className="ui-layer"
         style={{
@@ -1372,7 +1324,7 @@ export default function App() {
           zIndex: 10000,
         }}
       >
-        {/* SETTINGS BUTTON */}
+        {/* Settings Button */}
         <div
           style={{
             position: "absolute",
@@ -1383,7 +1335,7 @@ export default function App() {
             opacity: 0.7,
             transition: "opacity 0.2s",
             pointerEvents: "auto",
-            display: isBooting ? "none" : "block", // Hide during boot
+            display: isBooting ? "none" : "block",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.7)}
@@ -1392,7 +1344,7 @@ export default function App() {
           <GearIcon />
         </div>
 
-        {/* SETTINGS MENU */}
+        {/* Settings Menu */}
         {showSettings && (
           <div
             style={{
@@ -1499,7 +1451,7 @@ export default function App() {
           </div>
         )}
 
-        {/* CONTEXT MENU */}
+        {/* Context Menu */}
         {contextMenu &&
           createPortal(
             <div
@@ -1557,7 +1509,7 @@ export default function App() {
           )}
       </div>
 
-      {/* --- TERMINAL CONTAINER --- */}
+      {/* Terminal Container */}
       <div
         ref={terminalElRef}
         className="crt-effects crt-scanlines"
@@ -1609,7 +1561,6 @@ export default function App() {
           }}
         />
 
-        {/* Always render TerminalComponent now, it handles the loading text itself */}
         <TerminalComponent
           ref={terminalComponentRef}
           onCommand={handleTerminalCommand}
