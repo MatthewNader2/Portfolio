@@ -18,7 +18,6 @@ firestore.indexes.json
 .firebaserc
 
 # --- API Keys / Secrets ---
-# VERY IMPORTANT: This hides your API keys from the public repo
 frontend/src/firebaseConfig.js
 
 # --- Engine / C Build Artifacts ---
