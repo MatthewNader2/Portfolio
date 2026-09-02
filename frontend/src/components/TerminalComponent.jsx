@@ -60,7 +60,8 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
   // --- Helper Functions ---
   const getSuggestion = (line) => {
     if (!line || line.endsWith(" ")) return "";
-    const word = line.slice(line.lastIndexOf(" ") + 1).toLowerCase();
+    const lastSpace = line.lastIndexOf(" ");
+    const word = (lastSpace >= 0 ? line.slice(lastSpace + 1) : line).toLowerCase();
     if (!word) return "";
     const source = line.includes(" ") ? AVAILABLE_SECTIONS : AVAILABLE_COMMANDS;
     const match = source.find(
@@ -93,6 +94,67 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
       s.currentLine.slice(s.cursorIndex);
     s.cursorIndex += text.length;
     redrawLine();
+  };
+
+  const handleAcceptSuggestion = () => {
+    const s = state.current;
+    if (s.suggestion && s.cursorIndex === s.currentLine.length) {
+      playTabComplete();
+      s.currentLine += s.suggestion;
+      if (s.currentLine === "cat" || s.currentLine === "echo") {
+        s.currentLine += " ";
+      }
+      s.cursorIndex = s.currentLine.length;
+      s.suggestion = "";
+      redrawLine();
+      return true;
+    }
+    return false;
+  };
+
+  const handleTabPress = () => {
+    const s = state.current;
+    if (handleAcceptSuggestion()) return;
+
+    const lastSpace = s.currentLine.lastIndexOf(" ");
+    const currentWord = (lastSpace >= 0 ? s.currentLine.slice(lastSpace + 1) : s.currentLine).toLowerCase();
+    const source = s.currentLine.includes(" ")
+      ? AVAILABLE_SECTIONS
+      : AVAILABLE_COMMANDS;
+    const matches = source.filter((item) =>
+      item.startsWith(currentWord),
+    );
+
+    if (matches.length === 1) {
+      playTabComplete();
+      const prefix = lastSpace >= 0 ? s.currentLine.slice(0, lastSpace + 1) : "";
+      s.currentLine = prefix + matches[0];
+      if (s.currentLine === "cat" || s.currentLine === "echo") {
+        s.currentLine += " ";
+      }
+      s.cursorIndex = s.currentLine.length;
+      s.suggestion = "";
+      redrawLine();
+    } else if (matches.length > 1) {
+      let lcp = matches[0];
+      for (let i = 1; i < matches.length; i++) {
+        while (!matches[i].startsWith(lcp)) {
+          lcp = lcp.slice(0, -1);
+        }
+      }
+      if (lcp.length > currentWord.length) {
+        playTabComplete();
+        const prefix = lastSpace >= 0 ? s.currentLine.slice(0, lastSpace + 1) : "";
+        s.currentLine = prefix + lcp;
+        s.cursorIndex = s.currentLine.length;
+        s.suggestion = "";
+        redrawLine();
+      } else {
+        playTabComplete();
+        term.current.write("\r\n" + matches.join("   ") + "\r\n");
+        redrawLine();
+      }
+    }
   };
 
   const handleSpecialKey = (key) => {
@@ -146,13 +208,13 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
     write: (text) => term.current?.write(text.replace(/\r?\n/g, "\r\n")),
     clear: () => {
       if (!term.current) return;
-      term.current.clear();
       state.current.currentLine = "";
       state.current.cursorIndex = 0;
       state.current.suggestion = "";
       state.current.historyIndex = -1;
       state.current.tabPressCount = 0;
-      term.current.write("> ");
+      term.current.reset();
+      term.current.write("\x1b[2J\x1b[3J\x1b[H> ");
     },
     prompt: () => {
       if (!term.current) return;
@@ -273,9 +335,28 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
       term.current.open(terminalContainerRef.current);
       term.current.focus();
 
-      // Custom Key Handler (Copy/Paste/Shortcuts)
+      // Custom Key Handler (Copy/Paste/Intercept Tab & Shortcuts directly)
       term.current.attachCustomKeyEventHandler((arg) => {
         if (arg.type !== "keydown") return true;
+
+        // 1. Single Tab Autocomplete Interception
+        if (arg.key === "Tab") {
+          arg.preventDefault();
+          handleTabPress();
+          return false;
+        }
+
+        // 2. Right Arrow Autosuggestion Acceptance
+        if (arg.key === "ArrowRight") {
+          const s = state.current;
+          if (s.suggestion && s.cursorIndex === s.currentLine.length) {
+            arg.preventDefault();
+            handleAcceptSuggestion();
+            return false;
+          }
+        }
+
+        // 3. Clipboard Copy / Paste
         if (arg.ctrlKey && arg.key.toLowerCase() === "c") {
           const selection = term.current.getSelection();
           if (selection) {
@@ -309,7 +390,8 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
           const keyLower = domEvent.key.toLowerCase();
           if (keyLower === "l") {
             // Ctrl+L -> Clear Screen
-            term.current.clear();
+            term.current.reset();
+            term.current.write("\x1b[2J\x1b[3J\x1b[H");
             redrawLine();
             return;
           }
@@ -336,25 +418,17 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
           }
           if (keyLower === "e") {
             // Ctrl+E -> End of Line / Accept Suggestion
-            if (s.suggestion && s.cursorIndex === s.currentLine.length) {
-              playTabComplete();
-              s.currentLine += s.suggestion;
-              if (s.currentLine === "cat" || s.currentLine === "echo") {
-                s.currentLine += " ";
-              }
+            if (!handleAcceptSuggestion()) {
               s.cursorIndex = s.currentLine.length;
-              s.suggestion = "";
-            } else {
-              s.cursorIndex = s.currentLine.length;
+              redrawLine();
             }
-            redrawLine();
             return;
           }
           return;
         }
 
         if (domEvent.altKey || domEvent.metaKey) return;
-        if (domEvent.key !== "Tab") s.tabPressCount = 0;
+        if (domEvent.key === "Tab") return; // Handled in attachCustomKeyEventHandler
 
         switch (domEvent.key) {
           case "Enter":
@@ -381,20 +455,13 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
             break;
 
           case "ArrowRight":
-            // Zsh-style autosuggestion completion on Right Arrow
-            if (s.suggestion && s.cursorIndex === s.currentLine.length) {
-              playTabComplete();
-              s.currentLine += s.suggestion;
-              if (s.currentLine === "cat" || s.currentLine === "echo") {
-                s.currentLine += " ";
+            if (!handleAcceptSuggestion()) {
+              if (s.cursorIndex < s.currentLine.length) {
+                playKeyClick();
+                s.cursorIndex++;
+                redrawLine();
               }
-              s.cursorIndex = s.currentLine.length;
-              s.suggestion = "";
-            } else if (s.cursorIndex < s.currentLine.length) {
-              playKeyClick();
-              s.cursorIndex++;
             }
-            redrawLine();
             break;
 
           case "Home":
@@ -404,80 +471,12 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
             break;
 
           case "End":
-            if (s.suggestion && s.cursorIndex === s.currentLine.length) {
-              playTabComplete();
-              s.currentLine += s.suggestion;
-              if (s.currentLine === "cat" || s.currentLine === "echo") {
-                s.currentLine += " ";
-              }
-              s.cursorIndex = s.currentLine.length;
-              s.suggestion = "";
-            } else {
+            if (!handleAcceptSuggestion()) {
               playKeyClick();
               s.cursorIndex = s.currentLine.length;
-            }
-            redrawLine();
-            break;
-
-          case "Tab": {
-            // Single Tab Autocomplete
-            const currentWord = s.currentLine.slice(
-              s.currentLine.lastIndexOf(" ") + 1,
-            );
-            const source = s.currentLine.includes(" ")
-              ? AVAILABLE_SECTIONS
-              : AVAILABLE_COMMANDS;
-            const matches = source.filter((item) =>
-              item.startsWith(currentWord.toLowerCase()),
-            );
-
-            if (s.suggestion) {
-              playTabComplete();
-              s.currentLine += s.suggestion;
-              if (s.currentLine === "cat" || s.currentLine === "echo") {
-                s.currentLine += " ";
-              }
-              s.cursorIndex = s.currentLine.length;
-              s.suggestion = "";
               redrawLine();
-            } else if (matches.length === 1) {
-              playTabComplete();
-              const prefix = s.currentLine.slice(
-                0,
-                s.currentLine.lastIndexOf(" ") + 1,
-              );
-              s.currentLine = prefix + matches[0];
-              if (s.currentLine === "cat" || s.currentLine === "echo") {
-                s.currentLine += " ";
-              }
-              s.cursorIndex = s.currentLine.length;
-              s.suggestion = "";
-              redrawLine();
-            } else if (matches.length > 1) {
-              // Calculate longest common prefix
-              let lcp = matches[0];
-              for (let i = 1; i < matches.length; i++) {
-                while (!matches[i].startsWith(lcp)) {
-                  lcp = lcp.slice(0, -1);
-                }
-              }
-              if (lcp.length > currentWord.length) {
-                playTabComplete();
-                const prefix = s.currentLine.slice(
-                  0,
-                  s.currentLine.lastIndexOf(" ") + 1,
-                );
-                s.currentLine = prefix + lcp;
-                s.cursorIndex = s.currentLine.length;
-                redrawLine();
-              } else {
-                playTabComplete();
-                term.current.write("\r\n" + matches.join("   ") + "\r\n");
-                redrawLine();
-              }
             }
             break;
-          }
 
           case "ArrowUp":
             playKeyClick();

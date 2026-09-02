@@ -1,24 +1,182 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
     <head>
         <meta charset="UTF-8" />
         <link rel="icon" type="image/x-icon" href="/AppIcon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <meta name="theme-color" content="#000000" />
-        <meta name="description" content="Matthew Nader - Interactive 3D Retro CRT Terminal Portfolio built with React, Three.js, C, and WebAssembly." />
+        
+        <!-- Primary SEO Metadata -->
+        <title>Matthew Nader | Interactive 3D WebAssembly Portfolio & Software Engineer</title>
+        <meta name="title" content="Matthew Nader | Interactive 3D WebAssembly Portfolio & Software Engineer" />
+        <meta name="description" content="Official interactive 3D WebAssembly portfolio of Matthew Nader. Computer Science & Engineering student at Zewail City specializing in low-level systems, C/C++, WebAssembly, Three.js, Linux, Computer Vision, and Robotics." />
+        <meta name="keywords" content="Matthew Nader, Matthew Nader Portfolio, WebAssembly Portfolio, 3D Terminal Portfolio, C++ Software Engineer, Low-level Systems Developer, Three.js CRT, Zewail City Computer Science, Robotics MATE ROV, Computer Vision YOLO, Linux Developer" />
         <meta name="author" content="Matthew Nader" />
-        <meta property="og:title" content="Matthew Nader - Interactive 3D Terminal Portfolio" />
-        <meta property="og:description" content="A high-fidelity retro CRT monitor terminal portfolio running a custom C/WASM compiler with real-time 3D screen occlusion." />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://matthew-nader.web.app" />
+        <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <meta name="theme-color" content="#000000" />
+        <link rel="canonical" href="https://portfolio-3a194.web.app/" />
+
+        <!-- Open Graph / Facebook / LinkedIn -->
+        <meta property="og:type" content="profile" />
+        <meta property="og:url" content="https://portfolio-3a194.web.app/" />
+        <meta property="og:site_name" content="Matthew Nader Portfolio" />
+        <meta property="og:title" content="Matthew Nader | Interactive 3D WebAssembly Portfolio" />
+        <meta property="og:description" content="High-fidelity 3D Retro CRT Monitor terminal running a custom C & WebAssembly compiler engine with live GitHub integration." />
+        <meta property="og:image" content="https://portfolio-3a194.web.app/assets/background.jpg" />
+        <meta property="og:image:alt" content="Matthew Nader Retro 3D CRT Terminal Portfolio" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="profile:first_name" content="Matthew" />
+        <meta property="profile:last_name" content="Nader" />
+        <meta property="profile:username" content="MatthewNader2" />
+
+        <!-- Twitter Cards -->
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Matthew Nader - Interactive 3D Terminal Portfolio" />
-        <meta name="twitter:description" content="A high-fidelity retro CRT monitor terminal portfolio running a custom C/WASM compiler with real-time 3D screen occlusion." />
-        <title>Matthew's Portfolio</title>
+        <meta name="twitter:url" content="https://portfolio-3a194.web.app/" />
+        <meta name="twitter:title" content="Matthew Nader | Interactive 3D WebAssembly Portfolio" />
+        <meta name="twitter:description" content="Explore Matthew Nader's interactive 3D CRT terminal portfolio powered by WebAssembly, C, Three.js, and React." />
+        <meta name="twitter:image" content="https://portfolio-3a194.web.app/assets/background.jpg" />
+
+        <!-- Structured Data (JSON-LD) for Rich Google Search Snippets -->
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Person",
+              "@id": "https://portfolio-3a194.web.app/#person",
+              "name": "Matthew Nader",
+              "alternateName": "MatthewNader2",
+              "url": "https://portfolio-3a194.web.app/",
+              "image": "https://portfolio-3a194.web.app/assets/background.jpg",
+              "jobTitle": "Computer Science & Engineering Student / Software Engineer",
+              "worksFor": {
+                "@type": "EducationalOrganization",
+                "name": "University of Science and Technology at Zewail City"
+              },
+              "alumniOf": {
+                "@type": "EducationalOrganization",
+                "name": "Zewail City of Science and Technology",
+                "url": "https://www.zewailcity.edu.eg/"
+              },
+              "sameAs": [
+                "https://github.com/MatthewNader2",
+                "https://linkedin.com/in/matthewnader"
+              ],
+              "knowsAbout": [
+                "C",
+                "C++",
+                "WebAssembly",
+                "Three.js",
+                "React",
+                "Linux Kernel & Systems",
+                "Computer Vision & YOLO",
+                "Robotics & Control Systems",
+                "Embedded Systems",
+                "Python",
+                "MATLAB",
+                "Cloud Firestore & Firebase"
+              ]
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://portfolio-3a194.web.app/#website",
+              "url": "https://portfolio-3a194.web.app/",
+              "name": "Matthew Nader Portfolio",
+              "description": "Interactive 3D WebAssembly Terminal Portfolio showcasing systems engineering, robotics, and software projects.",
+              "publisher": {
+                "@id": "https://portfolio-3a194.web.app/#person"
+              }
+            },
+            {
+              "@type": "ProfilePage",
+              "@id": "https://portfolio-3a194.web.app/#profilepage",
+              "url": "https://portfolio-3a194.web.app/",
+              "name": "Matthew Nader - Professional Portfolio & Profile",
+              "isPartOf": {
+                "@id": "https://portfolio-3a194.web.app/#website"
+              },
+              "mainEntity": {
+                "@id": "https://portfolio-3a194.web.app/#person"
+              }
+            }
+          ]
+        }
+        </script>
     </head>
     <body>
+        <!-- Semantic Prerendered Content for Search Engine Crawlers & Accessibility -->
+        <main id="seo-crawler-content" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;">
+            <header>
+                <h1>Matthew Nader - Software Engineer & Systems Developer</h1>
+                <p>Computer Science and Engineering student at University of Science and Technology at Zewail City (Class of 2027).</p>
+            </header>
+
+            <section id="about-section">
+                <h2>About Matthew Nader</h2>
+                <p>
+                    Computer Science and Engineering undergraduate with a strong foundation in low-level programming, embedded systems, and machine learning. Passionate about robotics, computer vision, and building efficient systems at the hardware-software boundary. Experienced in competitive robotics (MATE ROV, Robofest, FLL) and systems architecture.
+                </p>
+            </section>
+
+            <section id="skills-section">
+                <h2>Technical Skills & Proficiencies</h2>
+                <ul>
+                    <li><strong>Languages:</strong> C, C++, Python, JavaScript, TypeScript, MATLAB, SQL, Assembly x86/ARM, Bash</li>
+                    <li><strong>Frameworks & Libraries:</strong> WebAssembly (WASM), Three.js, React, Node.js, OpenCV, PyTorch, TensorFlow, ROS2</li>
+                    <li><strong>Tools & Platforms:</strong> Linux / Unix, Git, Docker, CMake, Flex & Bison, Firebase, Firestore, Google Cloud</li>
+                    <li><strong>Concepts:</strong> Compilers & Interpreters, Operating Systems, Computer Vision, Robotics Autonomy, Data Structures & Algorithms</li>
+                </ul>
+            </section>
+
+            <section id="projects-section">
+                <h2>Featured Projects</h2>
+                <article>
+                    <h3>3D WebAssembly Interactive Terminal Portfolio</h3>
+                    <p>High-performance WebAssembly compilation engine written in C with Flex/Bison parsing, integrated with a 60 FPS Three.js CRT shader pipeline and dynamic GitHub repository discovery.</p>
+                </article>
+                <article>
+                    <h3>Autonomous Underwater Vehicle (AUV) Vision & Control System</h3>
+                    <p>Computer vision-driven autonomous navigation and thruster control system for MATE ROV competition vehicles using OpenCV and C++.</p>
+                </article>
+                <article>
+                    <h3>Embedded RTOS Kernel & Task Scheduler</h3>
+                    <p>Custom preemptive multitasking kernel for ARM Cortex-M microcontrollers with priority-based context switching.</p>
+                </article>
+            </section>
+
+            <section id="education-section">
+                <h2>Education</h2>
+                <p><strong>University of Science and Technology at Zewail City</strong> — Bachelor of Science in Computer Science and Engineering (CSE), Expected Graduation: 2027.</p>
+            </section>
+
+            <section id="awards-section">
+                <h2>Honors & Awards</h2>
+                <ul>
+                    <li>MATE ROV Regional Competition — Top Autonomous Navigation & Vehicle Engineering Award</li>
+                    <li>Robofest International Robotics Championship — Finalist & Best Mechanical Innovation</li>
+                    <li>First LEGO League (FLL) Championship — 1st Place Robot Performance</li>
+                    <li>Egyptian Collegiate Programming Contest (ECPC) — Qualified Finalist</li>
+                </ul>
+            </section>
+
+            <section id="contact-section">
+                <h2>Contact Information</h2>
+                <p>GitHub: <a href="https://github.com/MatthewNader2">https://github.com/MatthewNader2</a></p>
+                <p>LinkedIn: <a href="https://linkedin.com/in/matthewnader">Matthew Nader LinkedIn</a></p>
+            </section>
+        </main>
+
+        <noscript>
+            <div style="color: #00ff00; background: #000; padding: 40px; font-family: monospace; line-height: 1.6;">
+                <h1>Matthew Nader | Interactive Portfolio</h1>
+                <p>JavaScript and WebAssembly are required to experience the full 3D retro CRT terminal interface.</p>
+                <p>Please enable JavaScript in your browser or explore my work on GitHub: <a href="https://github.com/MatthewNader2" style="color: #00ffff;">https://github.com/MatthewNader2</a></p>
+            </div>
+        </noscript>
+
+        <!-- Interactive 3D WebAssembly Application Root -->
         <div id="root"></div>
         <script type="module" src="/src/main.jsx"></script>
     </body>
 </html>
-

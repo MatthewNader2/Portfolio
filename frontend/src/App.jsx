@@ -1189,33 +1189,37 @@ export default function App() {
     gltfLoader.load("/crt_tv_basis.glb", async (gltf) => {
       if (isDisposed) return;
       const tv = gltf.scene;
+      let screenMesh = null;
       let meshIndex = 0;
       tv.traverse((c) => {
         if (c.isMesh) {
-          if (meshIndex === 0 || meshIndex === 2) {
+          const matName = c.material?.name || "";
+          if (matName.includes("Screen") || c.name.includes("_2") || meshIndex === 2) {
             c.visible = false;
+            screenMesh = c;
           } else {
-            c.material.metalness = 0.04;
-            c.material.roughness = 0.38;
-            c.material.envMapIntensity = 1.2;
             c.visible = true;
+            c.material.metalness = 0.05;
+            c.material.roughness = 0.35;
+            c.material.envMapIntensity = 1.5;
+            if (c.material.color) {
+              c.material.color.setRGB(1.0, 1.0, 1.0);
+            }
           }
           meshIndex++;
         }
       });
 
-      let screenMesh = tv.getObjectByName("defaultMaterial_2");
       if (!screenMesh) {
-        const fallbackScreen = tv.children[0]?.children?.find(
-          (m) => m.isMesh && m.name.includes("defaultMaterial"),
-        );
-        if (!fallbackScreen) {
-          scene.add(tv);
-          return;
-        }
-        screenMesh = fallbackScreen;
+        screenMesh =
+          tv.getObjectByName("defaultMaterial_2") ||
+          tv.children[0]?.children?.find(
+            (m) => m.isMesh && m.name.includes("defaultMaterial"),
+          );
       }
-      screenMesh.visible = false;
+      if (screenMesh) {
+        screenMesh.visible = false;
+      }
 
       const group = new THREE.Group();
       group.position.set(0, -0.18, 0);
