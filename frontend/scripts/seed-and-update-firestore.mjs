@@ -76,7 +76,7 @@ async function main() {
     name: 'Matthew Nader',
     email: 'matthewnader2@gmail.com',
     github: 'https://github.com/MatthewNader2',
-    linkedin: 'https://linkedin.com/in/matthew-nader',
+    linkedin: 'https://www.linkedin.com/in/matthew-nader-11b57b1a5/',
     profile_picture_url: 'https://pub-817c933b19764d5fa88e1ff47c24f00e.r2.dev/Profile_Picture.jpeg',
     description: 'Passionate software engineer specialized in high-performance computing, Computer Vision (YOLO / PyTorch / OpenCV), Embedded Systems, and 3D Web Graphics (Three.js / WebAssembly). Proven track record leading robotics engineering teams and building autonomous agents.',
   });
