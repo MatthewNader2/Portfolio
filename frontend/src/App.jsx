@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import * as THREE from "three";
-import { WebGLRenderer } from "three";
 import {
   CSS3DRenderer,
   CSS3DObject,
@@ -10,9 +9,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
-// --- Firebase ---
+// --- Firebase & Fallback ---
 import { db } from "./firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
+import { FALLBACK_PORTFOLIO_DATA } from "./fallbackData";
 
 // --- Components & Assets ---
 import { TerminalComponent } from "./components/TerminalComponent";
@@ -35,6 +35,7 @@ const GearIcon = () => (
 );
 
 const FALLBACK_ICONS = {
+  "c": "https://cdn.simpleicons.org/c/A8B9CC",
   "c++": "https://cdn.simpleicons.org/cplusplus/00599C",
   matlab: "https://cdn.simpleicons.org/matlab/0076A8",
   "c#": "https://cdn.simpleicons.org/csharp/239120",
@@ -42,6 +43,7 @@ const FALLBACK_ICONS = {
   react: "https://cdn.simpleicons.org/react/61DAFB",
   python: "https://cdn.simpleicons.org/python/3776AB",
   javascript: "https://cdn.simpleicons.org/javascript/F7DF1E",
+  typescript: "https://cdn.simpleicons.org/typescript/3178C6",
   linux: "https://cdn.simpleicons.org/linux/FCC624",
   git: "https://cdn.simpleicons.org/git/F05032",
   docker: "https://cdn.simpleicons.org/docker/2496ED",
@@ -55,10 +57,14 @@ const FALLBACK_ICONS = {
   rust: "https://cdn.simpleicons.org/rust/FFFFFF",
   tailwindcss: "https://cdn.simpleicons.org/tailwindcss/06B6D4",
   dotnet: "https://cdn.simpleicons.org/dotnet/512BD4",
+  ros: "https://cdn.simpleicons.org/ros/22314E",
+  onnx: "https://cdn.simpleicons.org/onnx/005CED",
+  yolo: "https://cdn.simpleicons.org/opencv/5C3EE8",
 };
 
 // --- HELPERS ---
 
+/* eslint-disable-next-line no-control-regex */
 const stripAnsi = (str) => str.replace(/\x1b\[[0-9;]*m/g, "");
 
 const wrapText = (text, maxWidth, indent = "") => {
@@ -98,7 +104,7 @@ const generateAsciiArt = (imageUrl, width = 60) => {
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      const height = (img.height / img.width) * width * 0.5;
+      const height = Math.max(1, Math.floor((img.height / img.width) * width * 0.5));
       canvas.width = width;
       canvas.height = height;
       ctx.imageSmoothingEnabled = true;
@@ -128,7 +134,7 @@ const generateAsciiArt = (imageUrl, width = 60) => {
           ascii += "\x1b[0m\n";
         }
         resolve(ascii);
-      } catch (e) {
+      } catch {
         resolve("");
       }
     };
@@ -138,14 +144,15 @@ const generateAsciiArt = (imageUrl, width = 60) => {
 
 const runBootSequence = async (terminal) => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const write = (text) => terminal.write(text);
+  const write = (text) => terminal?.write(text);
 
+  if (!terminal) return;
   terminal.clear();
 
   write(
     "\x1b[1;32muser@portfolio\x1b[0m:\x1b[1;34m~\x1b[0m$ sudo apt update\r\n",
   );
-  await sleep(400);
+  await sleep(350);
 
   const packages = [
     "http://archive.ubuntu.com/ubuntu jammy InRelease",
@@ -159,7 +166,7 @@ const runBootSequence = async (terminal) => {
   for (let i = 0; i < packages.length; i++) {
     const speed = Math.floor(Math.random() * 5000) + 1200;
     write(`Get:${i + 1} ${packages[i]} [${speed} kB]\r\n`);
-    await sleep(Math.random() * 150 + 50);
+    await sleep(Math.random() * 100 + 40);
   }
 
   write("Fetched 24.8 MB in 1s (18.5 MB/s)\r\n");
@@ -173,7 +180,7 @@ const runBootSequence = async (terminal) => {
   write(
     "\x1b[1;32muser@portfolio\x1b[0m:\x1b[1;34m~\x1b[0m$ sudo apt upgrade -y\r\n",
   );
-  await sleep(600);
+  await sleep(400);
   write("Reading package lists... Done\r\n");
   write("Building dependency tree... Done\r\n");
   write("Calculating upgrade... Done\r\n");
@@ -191,22 +198,22 @@ const runBootSequence = async (terminal) => {
     const filled = "#".repeat(i);
     const empty = ".".repeat(totalSteps - i);
     write(`\rProgress: [${filled}${empty}] ${percent}%`);
-    await sleep(Math.random() * 100 + 20);
+    await sleep(Math.random() * 60 + 20);
   }
   write("\r\n");
 
   write("Unpacking portfolio-core (1.0.2) over (1.0.1)...\r\n");
-  await sleep(200);
+  await sleep(150);
   write("Setting up wasm-engine (2.4.0)...\r\n");
-  await sleep(200);
+  await sleep(150);
   write("Processing triggers for libc-bin (2.35-0ubuntu3.1)...\r\n");
-  await sleep(500);
+  await sleep(300);
   write("System successfully initialized.\r\n");
-  await sleep(800);
+  await sleep(500);
 
   terminal.clear();
   terminal.write("Welcome to Matthew's Interactive Portfolio!\r\n");
-  terminal.write("Type 'help' for a list of commands.\r\n");
+  terminal.write("Type 'help' or 'ls' for a list of commands and sections.\r\n");
   terminal.prompt();
 };
 
@@ -219,7 +226,6 @@ export default function App() {
 
   // --- State ---
   const [isBooting, setIsBooting] = useState(true);
-  const [bootFinished, setBootFinished] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({ particles: true, glitch: true });
   const [contextMenu, setContextMenu] = useState(null);
@@ -228,25 +234,43 @@ export default function App() {
   const wasmEngineRef = useRef(null);
   const portfolioDataRef = useRef("");
   const isBootingRef = useRef(true);
+  const bootFinishedRef = useRef(false);
+  const settingsRef = useRef(settings);
 
   const threeObjectsRef = useRef({
     camera: null,
     eventPlane: null,
     renderer: null,
   });
-  const cornerTlRef = useRef(null);
-  const cornerTrRef = useRef(null);
-  const cornerBlRef = useRef(null);
-  const cornerBrRef = useRef(null);
   const isDraggingOnTerminal = useRef(false);
   const selectionStartRef = useRef(null);
   const hoveredLinkRef = useRef(null);
+
+  // Sync settings ref
+  useEffect(() => {
+    settingsRef.current = settings;
+    if (terminalElRef.current) {
+      if (settings.glitch) {
+        terminalElRef.current.classList.add("crt-effects");
+        terminalElRef.current.classList.add("crt-scanlines");
+      } else {
+        terminalElRef.current.classList.remove("crt-effects");
+        terminalElRef.current.classList.remove("crt-scanlines");
+      }
+    }
+  }, [settings]);
 
   // --- Handlers ---
 
   const handleCopy = async () => {
     const text = terminalComponentRef.current?.getSelection();
-    if (text) await navigator.clipboard.writeText(text);
+    if (text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // clipboard access denied
+      }
+    }
     setContextMenu(null);
   };
 
@@ -254,8 +278,8 @@ export default function App() {
     try {
       const text = await navigator.clipboard.readText();
       if (text) terminalComponentRef.current?.paste(text);
-    } catch (err) {
-      console.error("Paste failed", err);
+    } catch {
+      // Paste access denied
     }
     setContextMenu(null);
   };
@@ -265,7 +289,7 @@ export default function App() {
     setContextMenu({ x: event.clientX, y: event.clientY });
   };
 
-  const handleTerminalCommand = (command) => {
+  const handleTerminalCommand = useCallback((command) => {
     if (isBootingRef.current) return;
 
     if (
@@ -301,13 +325,13 @@ export default function App() {
       terminalComponentRef.current.write(result);
       terminalComponentRef.current.prompt();
     }
-  };
+  }, []);
 
-  // --- Mouse Interaction (Raycasting) ---
+  // --- Mouse & Touch Interaction (Raycasting) ---
   useEffect(() => {
     if (!mountRef.current) return;
 
-    const getTermCoords = (event) => {
+    const getTermCoords = (clientX, clientY) => {
       const { camera, eventPlane } = threeObjectsRef.current;
       const container = mountRef.current;
       if (!camera || !eventPlane || !container) return null;
@@ -316,8 +340,8 @@ export default function App() {
       eventPlane.updateMatrixWorld();
 
       const rect = container.getBoundingClientRect();
-      const offsetX = event.clientX - rect.left;
-      const offsetY = event.clientY - rect.top;
+      const offsetX = clientX - rect.left;
+      const offsetY = clientY - rect.top;
 
       const mouse = new THREE.Vector2();
       const raycaster = new THREE.Raycaster();
@@ -357,21 +381,20 @@ export default function App() {
       return { col, row, dims };
     };
 
-    const handleMouseDown = (event) => {
-      if (event.isSynthetic) return;
+    const handlePointerDown = (clientX, clientY, button, detail = 1) => {
       if (contextMenu) setContextMenu(null);
-      if (event.button !== 0) return;
+      if (button !== 0 && button !== undefined) return;
 
-      if (event.detail === 2) {
-        const coords = getTermCoords(event);
+      if (detail === 2) {
+        const coords = getTermCoords(clientX, clientY);
         if (coords) {
           terminalComponentRef.current?.selectWordAt(coords.col, coords.row);
           isDraggingOnTerminal.current = false;
           return;
         }
       }
-      if (event.detail === 3) {
-        const coords = getTermCoords(event);
+      if (detail === 3) {
+        const coords = getTermCoords(clientX, clientY);
         if (coords) {
           terminalComponentRef.current?.selectLineAt(coords.row);
           isDraggingOnTerminal.current = false;
@@ -379,7 +402,7 @@ export default function App() {
         }
       }
 
-      const coords = getTermCoords(event);
+      const coords = getTermCoords(clientX, clientY);
       if (coords) {
         isDraggingOnTerminal.current = true;
         selectionStartRef.current = { col: coords.col, row: coords.row };
@@ -387,11 +410,10 @@ export default function App() {
       }
     };
 
-    const handleMouseMove = (event) => {
-      if (event.isSynthetic) return;
+    const handlePointerMove = (clientX, clientY) => {
       if (contextMenu) return;
 
-      const coords = getTermCoords(event);
+      const coords = getTermCoords(clientX, clientY);
 
       if (coords) {
         const link = terminalComponentRef.current?.getLinkAt(
@@ -434,252 +456,351 @@ export default function App() {
       }
     };
 
-    const handleMouseUp = (event) => {
-      if (event.isSynthetic) return;
-
+    const handlePointerUp = (clientX, clientY) => {
       const isClick =
         selectionStartRef.current &&
-        getTermCoords(event)?.col === selectionStartRef.current.col &&
-        getTermCoords(event)?.row === selectionStartRef.current.row;
+        getTermCoords(clientX, clientY)?.col === selectionStartRef.current.col &&
+        getTermCoords(clientX, clientY)?.row === selectionStartRef.current.row;
 
       if (isClick && hoveredLinkRef.current) {
-        window.open(hoveredLinkRef.current, "_blank");
+        window.open(hoveredLinkRef.current, "_blank", "noopener,noreferrer");
       }
 
       isDraggingOnTerminal.current = false;
       selectionStartRef.current = null;
     };
 
+    const onMouseDown = (e) => handlePointerDown(e.clientX, e.clientY, e.button, e.detail);
+    const onMouseMove = (e) => handlePointerMove(e.clientX, e.clientY);
+    const onMouseUp = (e) => handlePointerUp(e.clientX, e.clientY);
+
+    const onTouchStart = (e) => {
+      if (e.touches.length > 0) {
+        handlePointerDown(e.touches[0].clientX, e.touches[0].clientY, 0, 1);
+      }
+    };
+    const onTouchMove = (e) => {
+      if (e.touches.length > 0) {
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+    const onTouchEnd = (e) => {
+      if (e.changedTouches.length > 0) {
+        handlePointerUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      }
+    };
+
     const mount = mountRef.current;
-    mount.addEventListener("mousedown", handleMouseDown);
-    mount.addEventListener("mousemove", handleMouseMove);
-    mount.addEventListener("mouseup", handleMouseUp);
+    mount.addEventListener("mousedown", onMouseDown);
+    mount.addEventListener("mousemove", onMouseMove);
+    mount.addEventListener("mouseup", onMouseUp);
+    mount.addEventListener("touchstart", onTouchStart, { passive: true });
+    mount.addEventListener("touchmove", onTouchMove, { passive: true });
+    mount.addEventListener("touchend", onTouchEnd, { passive: true });
     mount.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
-      mount.removeEventListener("mousedown", handleMouseDown);
-      mount.removeEventListener("mousemove", handleMouseMove);
-      mount.removeEventListener("mouseup", handleMouseUp);
+      mount.removeEventListener("mousedown", onMouseDown);
+      mount.removeEventListener("mousemove", onMouseMove);
+      mount.removeEventListener("mouseup", onMouseUp);
+      mount.removeEventListener("touchstart", onTouchStart);
+      mount.removeEventListener("touchmove", onTouchMove);
+      mount.removeEventListener("touchend", onTouchEnd);
       mount.removeEventListener("contextmenu", handleContextMenu);
     };
   }, [contextMenu]);
 
   // --- Data Initialization ---
   useEffect(() => {
+    let isCancelled = false;
+
+    const fetchAndMergeGitHubRepos = async (existingProjects) => {
+      try {
+        const res = await fetch(
+          "https://api.github.com/users/MatthewNader2/repos?per_page=100&sort=updated",
+          { headers: { Accept: "application/vnd.github.v3+json" } },
+        );
+        if (!res.ok) return existingProjects;
+        const repos = await res.json();
+        if (!Array.isArray(repos)) return existingProjects;
+
+        const existingNames = new Set(
+          existingProjects.map((p) => {
+            const link = p.github || "";
+            const m = link.match(/github\.com\/[^/]+\/([^/.]+)/i);
+            return m ? m[1].toLowerCase().replace(/[-_.]/g, "") : "";
+          }).filter(Boolean),
+        );
+
+        const merged = [...existingProjects];
+
+        for (const repo of repos) {
+          if (repo.fork && repo.stargazers_count === 0) continue;
+          const normName = repo.name.toLowerCase().replace(/[-_.]/g, "");
+          if (!existingNames.has(normName)) {
+            existingNames.add(normName);
+            const formattedTitle = repo.name
+              .replace(/[-_]/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase());
+            const lang = repo.language || "Software";
+            const stars =
+              repo.stargazers_count > 0 ? ` | ${repo.stargazers_count} ★` : "";
+            const subtitle = `${lang}${stars}`;
+            const desc =
+              repo.description || `Open-source ${lang} project by Matthew Nader.`;
+
+            merged.push({
+              title: `\x1b[1;32m${formattedTitle}\x1b[0m`,
+              subtitle: subtitle,
+              description: wrapText(desc, TERMINAL_COLS - 6, "      "),
+              github: repo.html_url,
+            });
+          }
+        }
+        return merged;
+      } catch (err) {
+        console.warn("GitHub live sync skipped:", err);
+        return existingProjects;
+      }
+    };
+
     const initialize = async () => {
       try {
-        // 1. Load WASM
+        // 1. Load WASM Module
         const WasmModule = await import("./wasm/engine.js");
         const engine = await WasmModule.default();
         const processCommand = engine.cwrap("process_command", "string", [
           "string",
           "string",
         ]);
+        if (isCancelled) return;
         wasmEngineRef.current = { processCommand };
 
         // 2. Start Boot Sequence (Visuals)
         const bootPromise = runBootSequence(terminalComponentRef.current);
 
-        // 3. Fetch Data
-        const iconsSnap = await getDocs(collection(db, "skill_icons"));
+        // 3. Fetch Data with Fallback
+        let data = {};
         let iconMap = { ...FALLBACK_ICONS };
-        if (!iconsSnap.empty) {
-          iconsSnap.docs.forEach((doc) => {
-            const d = doc.data();
-            Object.keys(d).forEach((key) => {
-              if (typeof d[key] === "string" && d[key].startsWith("http")) {
-                iconMap[key.toLowerCase()] = d[key];
-              }
+
+        try {
+          const iconsSnap = await getDocs(collection(db, "skill_icons"));
+          if (!iconsSnap.empty) {
+            iconsSnap.docs.forEach((doc) => {
+              const d = doc.data();
+              Object.keys(d).forEach((key) => {
+                if (typeof d[key] === "string" && d[key].startsWith("http")) {
+                  iconMap[key.toLowerCase()] = d[key];
+                }
+              });
             });
-          });
-        }
-
-        const projectsSnap = await getDocs(collection(db, "projects"));
-        const experienceSnap = await getDocs(collection(db, "experience"));
-        const educationSnap = await getDocs(collection(db, "education"));
-        const awardsSnap = await getDocs(collection(db, "awards"));
-        const skillsSnap = await getDocs(collection(db, "skills"));
-        const personalInfoSnap = await getDocs(collection(db, "personal_info"));
-
-        const info = !personalInfoSnap.empty
-          ? personalInfoSnap.docs[0].data()
-          : {};
-
-        if (info.profile_picture_url) {
-          ASCII_CACHE.profile = await generateAsciiArt(
-            info.profile_picture_url,
-            70,
-          );
-        }
-
-        const data = {};
-        const aboutDesc = wrapText(
-          info.description || "Full Stack Developer.",
-          TERMINAL_COLS,
-        );
-        data["about"] = {
-          content: `\n[[PROFILE_ART]]\nNAME: ${info.name || "Matthew Nader"}\n\n${aboutDesc}`,
-        };
-
-        const formatLink = (link) => {
-          if (!link || link === "N/A") return "N/A";
-          const clean = link.replace(/^https?:\/\//, "");
-          return `https://${clean}`;
-        };
-
-        data["contact"] = {
-          email: info.email || "N/A",
-          linkedin: formatLink(info.linkedin),
-          github_profile: formatLink(info.github),
-        };
-
-        const eduDoc = !educationSnap.empty ? educationSnap.docs[0].data() : {};
-        data["education"] = {
-          degree: eduDoc.degree || "N/A",
-          institution: eduDoc.institution || "N/A",
-          graduation_date: eduDoc.graduation_date || "N/A",
-        };
-
-        const skillsRaw = !skillsSnap.empty ? skillsSnap.docs[0].data() : {};
-        const formattedSkills = {};
-        const skillKeys = [
-          "languages",
-          "frameworks_libraries",
-          "tools_platforms",
-          "concepts",
-        ];
-
-        for (const key of skillKeys) {
-          const val = skillsRaw[key];
-          let items = [];
-          if (val && typeof val === "object" && !Array.isArray(val))
-            items = Object.values(val);
-          else if (Array.isArray(val)) items = val;
-
-          const itemsFormatted = await Promise.all(
-            items.map(async (item, index) => {
-              const lowerName = item.toLowerCase().trim();
-              const iconKey = Object.keys(iconMap).find(
-                (k) =>
-                  lowerName === k ||
-                  lowerName.includes(k) ||
-                  k.includes(lowerName),
-              );
-              const iconUrl = iconKey ? iconMap[iconKey] : null;
-              let prefix = index > 0 ? "\b\b\n" : "";
-              const separator = `\x1b[38;5;240m${"-".repeat(40)}\x1b[0m`;
-              let displayString = "";
-
-              if (iconUrl) {
-                const ascii = await generateAsciiArt(iconUrl, 28);
-                const placeholder = `[[ICON:${lowerName}]]`;
-                ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
-                displayString = `${prefix}${separator}\n${placeholder}\n   >> ${item}`;
-              } else {
-                displayString = `${prefix}${separator}\n   >> ${item}`;
-              }
-              return displayString;
-            }),
-          );
-
-          if (itemsFormatted.length > 0) {
-            itemsFormatted[itemsFormatted.length - 1] += "\n";
-          }
-          formattedSkills[key] =
-            itemsFormatted.length > 0 ? itemsFormatted : ["N/A"];
-        }
-        data["skills"] = formattedSkills;
-
-        data["projects"] = projectsSnap.docs.map((doc) => {
-          const d = doc.data();
-          const separator = `\x1b[38;5;240m${"-".repeat(TERMINAL_COLS)}\x1b[0m`;
-          const rawTitle = d.title || "Untitled";
-          const wrappedTitle = wrapText(rawTitle, TERMINAL_COLS);
-          const title = `\n${separator}\n\x1b[1;32m${wrappedTitle}\x1b[0m`;
-          const subtitle = `\x1b[36m${d.subtitle || ""}\x1b[0m`;
-          const rawDesc = d.description || "";
-          const wrappedDesc = wrapText(rawDesc, TERMINAL_COLS, "   ");
-          const description = `\n   ${wrappedDesc}`;
-          return {
-            title: title,
-            subtitle: subtitle,
-            description: description,
-            github: formatLink(d.github),
-          };
-        });
-
-        data["experience"] = experienceSnap.docs.map((doc) => {
-          const d = doc.data();
-          const separator = `\x1b[38;5;240m${"-".repeat(TERMINAL_COLS)}\x1b[0m`;
-          const rawTitle = d.title || "N/A";
-          const rawCompany = d.company || "N/A";
-          const rawDuration = d.duration || "N/A";
-          const fullLineLen =
-            rawTitle.length +
-            4 +
-            rawCompany.length +
-            2 +
-            rawDuration.length +
-            1;
-          const titleCompanyLen = rawTitle.length + 4 + rawCompany.length;
-          let finalTitle = rawTitle;
-          let finalCompany = rawCompany;
-
-          if (fullLineLen <= TERMINAL_COLS) {
-            // Fits
-          } else if (titleCompanyLen <= TERMINAL_COLS) {
-            finalCompany = `${rawCompany}\n`;
-          } else {
-            finalTitle = `${rawTitle}\n`;
-            finalCompany = `${rawCompany}\n`;
           }
 
-          const title = `\n${separator}\n\x1b[1;32m${wrapText(finalTitle, TERMINAL_COLS)}\x1b[0m`;
-          const company = `\x1b[1;37m${wrapText(finalCompany, TERMINAL_COLS)}\x1b[0m`;
-          const duration = `\x1b[36m${d.duration || "N/A"}\x1b[0m`;
+          const [
+            projectsSnap,
+            experienceSnap,
+            educationSnap,
+            awardsSnap,
+            skillsSnap,
+            personalInfoSnap,
+          ] = await Promise.all([
+            getDocs(collection(db, "projects")),
+            getDocs(collection(db, "experience")),
+            getDocs(collection(db, "education")),
+            getDocs(collection(db, "awards")),
+            getDocs(collection(db, "skills")),
+            getDocs(collection(db, "personal_info")),
+          ]);
 
-          let descArray = Array.isArray(d.description)
-            ? d.description
-            : [d.description || ""];
-          descArray = descArray.filter(
-            (line) => line && line.trim().length > 0,
-          );
-          descArray = descArray.map(
-            (line) => wrapText(line, TERMINAL_COLS - 4, "    ") + "\n",
-          );
+          const info = !personalInfoSnap.empty
+            ? personalInfoSnap.docs[0].data()
+            : {};
 
-          return {
-            title: title,
-            company: company,
-            duration: duration,
-            description: descArray,
+          if (info.profile_picture_url) {
+            ASCII_CACHE.profile = await generateAsciiArt(
+              info.profile_picture_url,
+              70,
+            );
+          }
+
+          const formatLink = (link) => {
+            if (!link || link === "N/A") return "N/A";
+            const clean = link.replace(/^https?:\/\//, "");
+            return `https://${clean}`;
           };
-        });
 
-        data["awards"] = awardsSnap.docs.map((doc) => {
-          const d = doc.data();
-          return {
-            award: d.award || "N/A",
-            event: d.event || "N/A",
-            date: d.date || "N/A",
+          const aboutDesc = wrapText(
+            info.description || FALLBACK_PORTFOLIO_DATA.about.content,
+            TERMINAL_COLS,
+          );
+          data["about"] = {
+            content: `[[PROFILE_ART]]\nNAME: ${info.name || "Matthew Nader"}\n\n${aboutDesc}`,
           };
-        });
+
+          data["contact"] = {
+            email: info.email || FALLBACK_PORTFOLIO_DATA.contact.email,
+            linkedin: formatLink(info.linkedin) || FALLBACK_PORTFOLIO_DATA.contact.linkedin,
+            github_profile: formatLink(info.github) || FALLBACK_PORTFOLIO_DATA.contact.github_profile,
+          };
+
+          const eduDoc = !educationSnap.empty ? educationSnap.docs[0].data() : {};
+          data["education"] = {
+            degree: eduDoc.degree || FALLBACK_PORTFOLIO_DATA.education.degree,
+            institution: eduDoc.institution || FALLBACK_PORTFOLIO_DATA.education.institution,
+            graduation_date: eduDoc.graduation_date || FALLBACK_PORTFOLIO_DATA.education.graduation_date,
+          };
+
+          const skillsRaw = !skillsSnap.empty ? skillsSnap.docs[0].data() : {};
+          const formattedSkills = {};
+          const skillKeys = [
+            "languages",
+            "frameworks_libraries",
+            "tools_platforms",
+            "concepts",
+          ];
+
+          for (const key of skillKeys) {
+            const val = skillsRaw[key] || FALLBACK_PORTFOLIO_DATA.skills[key] || [];
+            let items = [];
+            if (val && typeof val === "object" && !Array.isArray(val)) {
+              items = Object.values(val);
+            } else if (Array.isArray(val)) {
+              items = val;
+            }
+
+            const itemsFormatted = await Promise.all(
+              items.map(async (item) => {
+                const lowerName = String(item).toLowerCase().trim();
+                const iconKey = Object.keys(iconMap).find(
+                  (k) =>
+                    lowerName === k ||
+                    lowerName.includes(k) ||
+                    k.includes(lowerName),
+                );
+                const iconUrl = iconKey ? iconMap[iconKey] : null;
+
+                if (iconUrl) {
+                  const ascii = await generateAsciiArt(iconUrl, 24);
+                  const placeholder = `[[ICON:${lowerName}]]`;
+                  ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
+                  return `${placeholder}\n   >> \x1b[1;32m${item}\x1b[0m`;
+                }
+                return `   >> \x1b[1;32m${item}\x1b[0m`;
+              }),
+            );
+
+            formattedSkills[key] =
+              itemsFormatted.length > 0 ? itemsFormatted : ["  N/A"];
+          }
+          data["skills"] = formattedSkills;
+
+          const initialProjects = !projectsSnap.empty
+            ? projectsSnap.docs.map((doc) => {
+                const d = doc.data();
+                return {
+                  title: `\x1b[1;32m${d.title || "Untitled"}\x1b[0m`,
+                  subtitle: d.subtitle || "",
+                  description: wrapText(d.description || "", TERMINAL_COLS - 6, "      "),
+                  github: formatLink(d.github),
+                };
+              })
+            : FALLBACK_PORTFOLIO_DATA.projects.map((p) => ({
+                title: `\x1b[1;32m${p.title}\x1b[0m`,
+                subtitle: p.subtitle,
+                description: wrapText(p.description, TERMINAL_COLS - 6, "      "),
+                github: p.github,
+              }));
+
+          data["projects"] = await fetchAndMergeGitHubRepos(initialProjects);
+
+          data["experience"] = !experienceSnap.empty
+            ? experienceSnap.docs.map((doc) => {
+                const d = doc.data();
+                let descArray = Array.isArray(d.description)
+                  ? d.description
+                  : [d.description || ""];
+                descArray = descArray.filter((l) => l && l.trim().length > 0);
+                descArray = descArray.map((l) => wrapText(l, TERMINAL_COLS - 6, "    "));
+                return {
+                  title: `\x1b[1;32m${d.title || "N/A"}\x1b[0m`,
+                  company: `\x1b[1;37m${d.company || "N/A"}\x1b[0m`,
+                  duration: `\x1b[36m${d.duration || "N/A"}\x1b[0m`,
+                  description: descArray,
+                };
+              })
+            : FALLBACK_PORTFOLIO_DATA.experience.map((e) => ({
+                title: `\x1b[1;32m${e.title}\x1b[0m`,
+                company: `\x1b[1;37m${e.company}\x1b[0m`,
+                duration: `\x1b[36m${e.duration}\x1b[0m`,
+                description: e.description.map((l) => wrapText(l, TERMINAL_COLS - 6, "    ")),
+              }));
+
+          data["awards"] = !awardsSnap.empty
+            ? awardsSnap.docs.map((doc) => {
+                const d = doc.data();
+                return {
+                  award: d.award || "N/A",
+                  event: d.event || "N/A",
+                  date: d.date || "N/A",
+                };
+              })
+            : FALLBACK_PORTFOLIO_DATA.awards;
+        } catch (dbErr) {
+          console.warn("Firestore unreachable, using bundled fallback portfolio data:", dbErr);
+          const fallbackProjects = FALLBACK_PORTFOLIO_DATA.projects.map((p) => ({
+            title: `\x1b[1;32m${p.title}\x1b[0m`,
+            subtitle: p.subtitle,
+            description: wrapText(p.description, TERMINAL_COLS - 6, "      "),
+            github: p.github,
+          }));
+          const dynamicProjects = await fetchAndMergeGitHubRepos(fallbackProjects);
+
+          data = {
+            about: { content: FALLBACK_PORTFOLIO_DATA.about.content },
+            contact: FALLBACK_PORTFOLIO_DATA.contact,
+            education: FALLBACK_PORTFOLIO_DATA.education,
+            skills: {
+              languages: FALLBACK_PORTFOLIO_DATA.skills.languages.map((s) => `   >> \x1b[1;32m${s}\x1b[0m`),
+              frameworks_libraries: FALLBACK_PORTFOLIO_DATA.skills.frameworks_libraries.map((s) => `   >> \x1b[1;32m${s}\x1b[0m`),
+              tools_platforms: FALLBACK_PORTFOLIO_DATA.skills.tools_platforms.map((s) => `   >> \x1b[1;32m${s}\x1b[0m`),
+              concepts: FALLBACK_PORTFOLIO_DATA.skills.concepts.map((s) => `   >> \x1b[1;32m${s}\x1b[0m`),
+            },
+            projects: dynamicProjects,
+            experience: FALLBACK_PORTFOLIO_DATA.experience.map((e) => ({
+              title: `\x1b[1;32m${e.title}\x1b[0m`,
+              company: `\x1b[1;37m${e.company}\x1b[0m`,
+              duration: `\x1b[36m${e.duration}\x1b[0m`,
+              description: e.description.map((l) => wrapText(l, TERMINAL_COLS - 6, "    ")),
+            })),
+            awards: FALLBACK_PORTFOLIO_DATA.awards,
+          };
+        }
 
         portfolioDataRef.current = JSON.stringify(data);
         await bootPromise;
 
-        isBootingRef.current = false;
-        setBootFinished(true);
-        setIsBooting(false);
+        if (!isCancelled) {
+          isBootingRef.current = false;
+          bootFinishedRef.current = true;
+          setIsBooting(false);
+        }
       } catch (error) {
-        console.error("Initialization failed:", error);
+        console.error("Initialization error:", error);
         terminalComponentRef.current?.write(
-          `\r\nFATAL ERROR: ${error.message}\r\n`,
+          `\r\nSystem ready (offline fallback mode).\r\n`,
         );
+        terminalComponentRef.current?.prompt();
+        isBootingRef.current = false;
+        bootFinishedRef.current = true;
+        setIsBooting(false);
       }
     };
 
-    setTimeout(initialize, 100);
+    const timer = setTimeout(initialize, 100);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
   }, []);
 
   // --- 3D Render Loop ---
@@ -688,6 +809,7 @@ export default function App() {
 
     const mount = mountRef.current;
     let raf = null;
+    let isDisposed = false;
 
     const finalParams = {
       offsetX: 0,
@@ -721,7 +843,7 @@ export default function App() {
     camera.position.copy(startCamPos);
     camera.lookAt(startLookAt);
 
-    const webglRenderer = new WebGLRenderer({ antialias: true, alpha: true });
+    const webglRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     webglRenderer.setSize(window.innerWidth, window.innerHeight);
     webglRenderer.outputColorSpace = THREE.SRGBColorSpace;
     webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -740,7 +862,12 @@ export default function App() {
     cssContainer.appendChild(cssRenderer.domElement);
     mount.appendChild(cssContainer);
 
-    new THREE.TextureLoader().load(backgroundUrl, (t) => {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(backgroundUrl, (t) => {
+      if (isDisposed) {
+        t.dispose();
+        return;
+      }
       t.colorSpace = THREE.SRGBColorSpace;
       const zoomFactor = 1 / backgroundZoom;
       const offsetFactor = (1 - zoomFactor) / 2;
@@ -755,8 +882,8 @@ export default function App() {
     dl.position.set(5, 5, 5);
     scene.add(dl);
 
-    // Particles
-    const particleCount = 600;
+    // Dust Particles
+    const particleCount = 400;
     const particleGeo = new THREE.DodecahedronGeometry(0.008, 0);
     const particleMat = new THREE.MeshBasicMaterial({
       transparent: true,
@@ -797,8 +924,8 @@ export default function App() {
     const RASTER_SCALE = 0.5;
 
     // --- 3D Helper Functions (Occlusion Logic) ---
-    function worldToScreenXY(vWorld, camera, canvasRect) {
-      const ndc = vWorld.clone().project(camera);
+    function worldToScreenXY(vWorld, cam, canvasRect) {
+      const ndc = vWorld.clone().project(cam);
       const x = (ndc.x * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
       const y = (-ndc.y * 0.5 + 0.5) * canvasRect.height + canvasRect.top;
       return [x, y];
@@ -896,13 +1023,7 @@ export default function App() {
       return result;
     }
 
-    function contourToClipPathPercent(
-      contour,
-      rectLeft,
-      rectTop,
-      rectW,
-      rectH,
-    ) {
+    function contourToClipPathPercent(contour, rectLeft, rectTop, rectW, rectH) {
       if (rectW < 1 || rectH < 1) return "polygon(0% 0%)";
       const pts = contour.map(([x, y]) => {
         const px = ((x + 0.5 - rectLeft) / rectW) * 100;
@@ -961,14 +1082,8 @@ export default function App() {
           worldToScreenXY(c, camera, canvasRect),
         ]);
       }
-      const canvasW = Math.max(
-        16,
-        Math.floor(window.innerWidth * RASTER_SCALE),
-      );
-      const canvasH = Math.max(
-        16,
-        Math.floor(window.innerHeight * RASTER_SCALE),
-      );
+      const canvasW = Math.max(16, Math.floor(window.innerWidth * RASTER_SCALE));
+      const canvasH = Math.max(16, Math.floor(window.innerHeight * RASTER_SCALE));
       const scaledTris = projectedTris.map((tri) =>
         tri.map(([x, y]) => [x * RASTER_SCALE, y * RASTER_SCALE]),
       );
@@ -1029,14 +1144,13 @@ export default function App() {
     scene.add(eventPlane);
 
     gltfLoader.load("/crt_tv_basis.glb", async (gltf) => {
+      if (isDisposed) return;
       const tv = gltf.scene;
       let meshIndex = 0;
       tv.traverse((c) => {
         if (c.isMesh) {
           if (meshIndex === 0 || meshIndex === 2) {
             c.visible = false;
-            if (c.geometry) c.geometry.dispose();
-            if (c.material) c.material.dispose();
           } else {
             c.material.metalness = 0.4;
             c.material.roughness = 0.6;
@@ -1048,7 +1162,6 @@ export default function App() {
 
       let screenMesh = tv.getObjectByName("defaultMaterial_2");
       if (!screenMesh) {
-        console.warn("[app] screen mesh not found, using a fallback");
         const fallbackScreen = tv.children[0]?.children?.find(
           (m) => m.isMesh && m.name.includes("defaultMaterial"),
         );
@@ -1083,16 +1196,6 @@ export default function App() {
 
       threeObjectsRef.current = { camera, eventPlane, renderer: webglRenderer };
 
-      rebuildClipPath = () => {
-        const terminalDiv = terminalElRef.current;
-        if (!terminalDiv) return;
-        const clipPath = buildClipPathFromMesh(clipMesh);
-        if (clipPath) {
-          terminalDiv.style.clipPath = clipPath;
-          terminalDiv.style.webkitClipPath = clipPath;
-        }
-      };
-
       function updateTerminalTransform() {
         const termW = 1024,
           termH = 768;
@@ -1101,9 +1204,7 @@ export default function App() {
         screenMesh.updateWorldMatrix(true, false);
         const screenBox = new THREE.Box3().setFromObject(screenMesh);
         const basePosition = screenBox.getCenter(new THREE.Vector3());
-        const baseQuaternion = screenMesh.getWorldQuaternion(
-          new THREE.Quaternion(),
-        );
+        const baseQuaternion = screenMesh.getWorldQuaternion(new THREE.Quaternion());
         const size = screenBox.getSize(new THREE.Vector3());
 
         if (size.x === 0 || size.y === 0) return;
@@ -1145,41 +1246,59 @@ export default function App() {
         eventPlane.updateMatrixWorld();
       }
 
+      // Initial transform calculation once (not on every frame)
+      updateTerminalTransform();
+
+      rebuildClipPath = () => {
+        const terminalDiv = terminalElRef.current;
+        if (!terminalDiv) return;
+        const clipPath = buildClipPathFromMesh(clipMesh);
+        if (clipPath) {
+          terminalDiv.style.clipPath = clipPath;
+          terminalDiv.style.webkitClipPath = clipPath;
+        }
+      };
+
       let transitionProgress = 0;
+      let transitionDone = false;
       const transitionSpeed = 0.015;
       const currentLookAt = new THREE.Vector3().copy(startLookAt);
 
       function animate() {
+        if (isDisposed) return;
         raf = requestAnimationFrame(animate);
 
-        updateTerminalTransform();
-
-        // Camera Transition
-        if (window.bootSequenceFinished && transitionProgress < 1) {
+        // Smooth Camera Transition after Boot
+        if (bootFinishedRef.current && transitionProgress < 1) {
           transitionProgress += transitionSpeed;
-          if (transitionProgress > 1) transitionProgress = 1;
+          if (transitionProgress >= 1) {
+            transitionProgress = 1;
+            transitionDone = true;
+            // Update occlusion clip path for final camera position
+            rebuildClipPath();
+          }
           const t = 1 - Math.pow(1 - transitionProgress, 3);
           camera.position.lerpVectors(startCamPos, endCamPos, t);
           currentLookAt.lerpVectors(startLookAt, endLookAt, t);
           camera.lookAt(currentLookAt);
-        } else if (transitionProgress >= 1) {
+        } else if (transitionDone) {
           camera.lookAt(endLookAt);
         }
 
-        // Sync Particles
-        const currentSettings = window.currentSettings || { particles: true };
-        particleMesh.visible = currentSettings.particles;
+        // Sync Dust Particles with positive scale
+        const curSettings = settingsRef.current;
+        particleMesh.visible = curSettings.particles;
 
-        if (currentSettings.particles) {
+        if (curSettings.particles) {
           particlesData.forEach((particle, i) => {
             let { speed, x, y, z } = particle;
             const t = (particle.time += speed);
             dummy.position.set(
-              x + Math.cos(t) + Math.sin(t * 1) / 10,
+              x + Math.cos(t) + Math.sin(t) / 10,
               y + Math.sin(t) + Math.cos(t * 2) / 10,
               z + Math.cos(t) + Math.sin(t * 3) / 10,
             );
-            const s = Math.cos(t);
+            const s = 0.3 + 0.7 * Math.abs(Math.cos(t));
             dummy.scale.set(s, s, s);
             dummy.rotation.set(s * 5, s * 5, s * 5);
             dummy.updateMatrix();
@@ -1197,30 +1316,34 @@ export default function App() {
     });
 
     return () => {
+      isDisposed = true;
       cancelAnimationFrame(raf);
-      ktx2Loader.dispose();
-      while (mount.firstChild) mount.removeChild(mount.firstChild);
       window.removeEventListener("resize", onWindowResize);
+      if (resizeTimer) clearTimeout(resizeTimer);
+
+      ktx2Loader.dispose();
+      particleGeo.dispose();
+      particleMat.dispose();
+      particleMesh.dispose();
+      webglRenderer.dispose();
+
+      scene.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+      if (scene.background && scene.background.dispose) {
+        scene.background.dispose();
+      }
+
+      while (mount.firstChild) mount.removeChild(mount.firstChild);
     };
   }, []);
-
-  // --- Sync State ---
-  useEffect(() => {
-    window.bootSequenceFinished = bootFinished;
-  }, [bootFinished]);
-
-  useEffect(() => {
-    window.currentSettings = settings;
-    if (terminalElRef.current) {
-      if (settings.glitch) {
-        terminalElRef.current.classList.add("crt-effects");
-        terminalElRef.current.classList.add("crt-scanlines");
-      } else {
-        terminalElRef.current.classList.remove("crt-effects");
-        terminalElRef.current.classList.remove("crt-scanlines");
-      }
-    }
-  }, [settings]);
 
   return (
     <div
@@ -1248,6 +1371,9 @@ export default function App() {
       >
         {/* Settings Button */}
         <div
+          role="button"
+          aria-label="System configuration"
+          tabIndex={isBooting ? -1 : 0}
           style={{
             position: "absolute",
             top: "20px",
@@ -1258,10 +1384,17 @@ export default function App() {
             transition: "opacity 0.2s",
             pointerEvents: "auto",
             display: isBooting ? "none" : "block",
+            outline: "none",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = 0.7)}
           onClick={() => setShowSettings(!showSettings)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setShowSettings((s) => !s);
+              e.preventDefault();
+            }
+          }}
         >
           <GearIcon />
         </div>
@@ -1269,6 +1402,8 @@ export default function App() {
         {/* Settings Menu */}
         {showSettings && (
           <div
+            role="dialog"
+            aria-label="System Configuration Menu"
             style={{
               position: "absolute",
               top: "60px",
@@ -1305,9 +1440,19 @@ export default function App() {
             >
               <span>DUST FX</span>
               <div
+                role="switch"
+                aria-checked={settings.particles}
+                aria-label="Toggle Dust Effects"
+                tabIndex={0}
                 onClick={() =>
                   setSettings((s) => ({ ...s, particles: !s.particles }))
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    setSettings((s) => ({ ...s, particles: !s.particles }));
+                    e.preventDefault();
+                  }
+                }}
                 style={{
                   width: "30px",
                   height: "15px",
@@ -1317,6 +1462,7 @@ export default function App() {
                   background: settings.particles
                     ? "rgba(0,255,0,0.2)"
                     : "transparent",
+                  outline: "none",
                 }}
               >
                 <div
@@ -1343,9 +1489,19 @@ export default function App() {
             >
               <span>CRT FX</span>
               <div
+                role="switch"
+                aria-checked={settings.glitch}
+                aria-label="Toggle CRT Glitch Effects"
+                tabIndex={0}
                 onClick={() =>
                   setSettings((s) => ({ ...s, glitch: !s.glitch }))
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    setSettings((s) => ({ ...s, glitch: !s.glitch }));
+                    e.preventDefault();
+                  }
+                }}
                 style={{
                   width: "30px",
                   height: "15px",
@@ -1355,6 +1511,7 @@ export default function App() {
                   background: settings.glitch
                     ? "rgba(0,255,0,0.2)"
                     : "transparent",
+                  outline: "none",
                 }}
               >
                 <div
@@ -1377,6 +1534,8 @@ export default function App() {
         {contextMenu &&
           createPortal(
             <div
+              role="menu"
+              aria-label="Terminal Context Menu"
               style={{
                 position: "fixed",
                 top: contextMenu.y,
@@ -1395,6 +1554,8 @@ export default function App() {
               onContextMenu={(e) => e.preventDefault()}
             >
               <div
+                role="menuitem"
+                tabIndex={0}
                 style={{
                   padding: "8px 20px",
                   cursor: "pointer",
@@ -1411,6 +1572,8 @@ export default function App() {
                 Copy
               </div>
               <div
+                role="menuitem"
+                tabIndex={0}
                 style={{
                   padding: "8px 20px",
                   cursor: "pointer",
@@ -1448,41 +1611,6 @@ export default function App() {
           left: 0,
         }}
       >
-        <div
-          ref={cornerTlRef}
-          style={{ position: "absolute", top: 0, left: 0, width: 1, height: 1 }}
-        />
-        <div
-          ref={cornerTrRef}
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: 1,
-            height: 1,
-          }}
-        />
-        <div
-          ref={cornerBlRef}
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            width: 1,
-            height: 1,
-          }}
-        />
-        <div
-          ref={cornerBrRef}
-          style={{
-            position: "absolute",
-            bottom: 0,
-            right: 0,
-            width: 1,
-            height: 1,
-          }}
-        />
-
         <TerminalComponent
           ref={terminalComponentRef}
           onCommand={handleTerminalCommand}

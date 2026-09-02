@@ -24,5 +24,3 @@ dist-ssr
 *.sw?
 .env
 
-# Wasm build artifacts
-src/wasm

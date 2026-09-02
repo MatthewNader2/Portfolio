@@ -4,4 +4,17 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ["three"],
+          xterm: ["xterm", "xterm-addon-fit"],
+          firebase: ["firebase/app", "firebase/firestore"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+  },
 });
+

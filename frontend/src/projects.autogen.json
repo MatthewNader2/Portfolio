@@ -1,0 +1,201 @@
+[
+  {
+    "repo": "zc-ocw",
+    "title": "Zc Ocw",
+    "subtitle": "JavaScript",
+    "description": "Open-source JavaScript project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/zc-ocw",
+    "stars": 0,
+    "language": "JavaScript",
+    "topics": [],
+    "updated_at": "2026-09-02T13:50:00Z"
+  },
+  {
+    "repo": "NSTL_test",
+    "title": "NSTL Test",
+    "subtitle": "Python",
+    "description": "Open-source Python project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/NSTL_test",
+    "stars": 0,
+    "language": "Python",
+    "topics": [],
+    "updated_at": "2026-09-01T20:51:54Z"
+  },
+  {
+    "repo": "sudoku-rs",
+    "title": "Sudoku Rs",
+    "subtitle": "Rust",
+    "description": "Open-source Rust project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/sudoku-rs",
+    "stars": 0,
+    "language": "Rust",
+    "topics": [],
+    "updated_at": "2026-08-28T13:20:45Z"
+  },
+  {
+    "repo": "Portfolio",
+    "title": "Portfolio",
+    "subtitle": "JavaScript | 4 ★",
+    "description": "Open-source JavaScript project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Portfolio",
+    "stars": 4,
+    "language": "JavaScript",
+    "topics": [
+      "c-compiler",
+      "css3d",
+      "portfolio",
+      "portfolio-project",
+      "portfolio-site",
+      "portfolio-template",
+      "portfolio-website",
+      "retro-ui",
+      "threejs",
+      "wasm",
+      "webassembly",
+      "webgl"
+    ],
+    "updated_at": "2026-07-26T06:22:51Z"
+  },
+  {
+    "repo": "SlowRoads_SelfDriving_Agent",
+    "title": "SlowRoads SelfDriving Agent",
+    "subtitle": "Python | 5 ★",
+    "description": "An autonomous self-driving agent for slowroads.io using OpenCV, DBSCAN, RANSAC, and a PID controller",
+    "github": "https://github.com/MatthewNader2/SlowRoads_SelfDriving_Agent",
+    "stars": 5,
+    "language": "Python",
+    "topics": [
+      "autonomous-agent",
+      "computer-vision",
+      "dbscan",
+      "flask",
+      "opencv",
+      "pid-controller",
+      "python",
+      "ransac",
+      "self-driving-car"
+    ],
+    "updated_at": "2026-05-05T14:41:07Z"
+  },
+  {
+    "repo": "ES_Course_Labs",
+    "title": "ES Course Labs",
+    "subtitle": "C",
+    "description": "\"Embedded Systems labs for PIC microcontrollers, featuring structured drivers, HAL & MCAL layers, and modular coding for hands-on learning",
+    "github": "https://github.com/MatthewNader2/ES_Course_Labs",
+    "stars": 0,
+    "language": "C",
+    "topics": [],
+    "updated_at": "2026-04-09T20:48:57Z"
+  },
+  {
+    "repo": "VisionScreen",
+    "title": "VisionScreen",
+    "subtitle": "Python",
+    "description": "Open-source Python project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/VisionScreen",
+    "stars": 0,
+    "language": "Python",
+    "topics": [],
+    "updated_at": "2026-03-23T15:50:05Z"
+  },
+  {
+    "repo": "ruko-learning-world",
+    "title": "Ruko Learning World",
+    "subtitle": "TypeScript",
+    "description": "Open-source TypeScript project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/ruko-learning-world",
+    "stars": 0,
+    "language": "TypeScript",
+    "topics": [],
+    "updated_at": "2026-02-11T19:11:12Z"
+  },
+  {
+    "repo": "OS_Scheduler",
+    "title": "OS Scheduler",
+    "subtitle": "C | 1 ★",
+    "description": "Open-source C project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/OS_Scheduler",
+    "stars": 1,
+    "language": "C",
+    "topics": [],
+    "updated_at": "2025-02-07T19:44:14Z"
+  },
+  {
+    "repo": "Orrey_Sim",
+    "title": "Orrey Sim",
+    "subtitle": "JavaScript",
+    "description": "Open-source JavaScript project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Orrey_Sim",
+    "stars": 0,
+    "language": "JavaScript",
+    "topics": [],
+    "updated_at": "2024-10-05T04:13:17Z"
+  },
+  {
+    "repo": "Mort-Detection",
+    "title": "Mort Detection",
+    "subtitle": "Python",
+    "description": "Open-source Python project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Mort-Detection",
+    "stars": 0,
+    "language": "Python",
+    "topics": [],
+    "updated_at": "2024-07-03T22:51:12Z"
+  },
+  {
+    "repo": "Coral-Reef-Health-Monitoring",
+    "title": "Coral Reef Health Monitoring",
+    "subtitle": "Python",
+    "description": "Open-source Python project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Coral-Reef-Health-Monitoring",
+    "stars": 0,
+    "language": "Python",
+    "topics": [],
+    "updated_at": "2024-07-03T22:36:13Z"
+  },
+  {
+    "repo": "Fish-Detection-GUI",
+    "title": "Fish Detection GUI",
+    "subtitle": "Python",
+    "description": "Open-source Python project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Fish-Detection-GUI",
+    "stars": 0,
+    "language": "Python",
+    "topics": [],
+    "updated_at": "2024-07-03T13:08:00Z"
+  },
+  {
+    "repo": "Underwater-Trash-Detection",
+    "title": "Underwater Trash Detection",
+    "subtitle": "Jupyter Notebook",
+    "description": "Open-source Jupyter Notebook project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Underwater-Trash-Detection",
+    "stars": 0,
+    "language": "Jupyter Notebook",
+    "topics": [],
+    "updated_at": "2024-07-03T09:25:40Z"
+  },
+  {
+    "repo": "fish-counting",
+    "title": "Fish Counting",
+    "subtitle": "Jupyter Notebook",
+    "description": "Open-source Jupyter Notebook project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/fish-counting",
+    "stars": 0,
+    "language": "Jupyter Notebook",
+    "topics": [],
+    "updated_at": "2024-07-03T01:25:42Z"
+  },
+  {
+    "repo": "Crab-Shell-Width-Estimation",
+    "title": "Crab Shell Width Estimation",
+    "subtitle": "Jupyter Notebook",
+    "description": "Open-source Jupyter Notebook project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Crab-Shell-Width-Estimation",
+    "stars": 0,
+    "language": "Jupyter Notebook",
+    "topics": [],
+    "updated_at": "2024-07-02T02:58:11Z"
+  }
+]

@@ -8,6 +8,37 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 
+// --- Autocomplete Data ---
+const AVAILABLE_COMMANDS = [
+  "cat",
+  "echo",
+  "help",
+  "clear",
+  "cls",
+  "ls",
+  "dir",
+  "whoami",
+  "id",
+  "date",
+  "pwd",
+  "about",
+  "projects",
+  "skills",
+  "experience",
+  "education",
+  "awards",
+  "contact",
+];
+const AVAILABLE_SECTIONS = [
+  "about",
+  "projects",
+  "skills",
+  "experience",
+  "education",
+  "contact",
+  "awards",
+];
+
 export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
   // --- Refs ---
   const terminalContainerRef = useRef(null);
@@ -25,20 +56,7 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
     tabPressCount: 0,
   });
 
-  // --- Autocomplete Data ---
-  const availableCommands = ["cat", "echo", "help", "clear", "cls"];
-  const availableSections = [
-    "about",
-    "projects",
-    "skills",
-    "experience",
-    "education",
-    "contact",
-    "awards",
-  ];
-
   // --- Helper Functions ---
-
   const redrawLine = () => {
     if (!term.current) return;
     const s = state.current;
@@ -46,7 +64,7 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
     const getSuggestion = (line) => {
       if (!line || line.endsWith(" ")) return "";
       const word = line.slice(line.lastIndexOf(" ") + 1);
-      const source = line.includes(" ") ? availableSections : availableCommands;
+      const source = line.includes(" ") ? AVAILABLE_SECTIONS : AVAILABLE_COMMANDS;
       const match = source.find(
         (item) => item.startsWith(word) && item !== word,
       );
@@ -104,17 +122,16 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
   const handleMobileChange = (e) => {
     const val = e.target.value;
     if (val) {
-      // Take the last character typed (simplified for mobile composition)
       const char = val.slice(-1);
       handleInputText(char);
     }
-    e.target.value = ""; // Clear immediately
+    e.target.value = "";
   };
 
   const handleMobileKeyDown = (e) => {
     if (e.key === "Enter" || e.key === "Backspace") {
       handleSpecialKey(e.key);
-      e.preventDefault(); // Prevent default textarea behavior
+      e.preventDefault();
     }
   };
 
@@ -125,7 +142,6 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
     prompt: () => term.current?.write("\r\n> "),
     focus: () => {
       term.current?.focus();
-      // On mobile, also focus the hidden textarea
       if (window.innerWidth < 1024) {
         mobileInputRef.current?.focus();
       }
@@ -214,8 +230,13 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
   // --- Terminal Initialization ---
   useEffect(() => {
     if (terminalContainerRef.current && !term.current) {
-      const completionSound = new Audio("/assets/bell.oga");
-      completionSound.volume = 0.8;
+      let completionSound = null;
+      try {
+        completionSound = new Audio("/assets/bell.oga");
+        completionSound.volume = 0.8;
+      } catch {
+        // Audio unsupported
+      }
 
       term.current = new Terminal({
         fontFamily: '"Pixelmix", monospace',
@@ -316,13 +337,13 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
                 s.currentLine.lastIndexOf(" ") + 1,
               );
               const source = s.currentLine.includes(" ")
-                ? availableSections
-                : availableCommands;
+                ? AVAILABLE_SECTIONS
+                : AVAILABLE_COMMANDS;
               const matches = source.filter((item) =>
                 item.startsWith(currentWord),
               );
               if (matches.length > 1 && s.tabPressCount >= 1) {
-                completionSound.play().catch(() => {});
+                if (completionSound) completionSound.play().catch(() => {});
                 term.current.write("\r\n" + matches.join("   ") + "\r\n");
                 redrawLine();
               }
@@ -357,10 +378,13 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
         }
       });
     }
-  }, [onCommand]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
+      role="region"
+      aria-label="Interactive Retro 3D Terminal"
       onClick={() => {
         term.current?.focus();
         mobileInputRef.current?.focus();
@@ -369,7 +393,6 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
         width: "100%",
         height: "100%",
         padding: "50px",
-        paddingRight: "65px",
         boxSizing: "border-box",
         position: "relative",
       }}
@@ -377,6 +400,7 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
       {/* Hidden Textarea for Mobile Keyboard Support */}
       <textarea
         ref={mobileInputRef}
+        aria-label="Terminal Input"
         style={{
           position: "absolute",
           top: 0,
@@ -405,9 +429,11 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
           width: "100%",
           height: "100%",
           position: "relative",
-          zIndex: 1, // Ensure terminal visual is above textarea
+          zIndex: 1,
         }}
       />
     </div>
   );
 });
+
+TerminalComponent.displayName = "TerminalComponent";
