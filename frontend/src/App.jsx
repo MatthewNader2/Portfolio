@@ -142,11 +142,18 @@ const generateAsciiArt = (imageUrl, width = 60) => {
   });
 };
 
-const runBootSequence = async (terminal) => {
+const runBootSequence = async (terminalGetter) => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const write = (text) => terminal?.write(text);
+  let terminal = typeof terminalGetter === "function" ? terminalGetter() : terminalGetter;
+  let attempts = 0;
+  while (!terminal && attempts < 50) {
+    await sleep(50);
+    terminal = typeof terminalGetter === "function" ? terminalGetter() : terminalGetter;
+    attempts++;
+  }
 
   if (!terminal) return;
+  const write = (text) => terminal.write(text);
   terminal.clear();
 
   write(
@@ -226,6 +233,7 @@ export default function App() {
 
   // --- State ---
   const [isBooting, setIsBooting] = useState(true);
+  const [bootFinished, setBootFinished] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({ particles: true, glitch: true });
   const [contextMenu, setContextMenu] = useState(null);
@@ -236,6 +244,11 @@ export default function App() {
   const isBootingRef = useRef(true);
   const bootFinishedRef = useRef(false);
   const settingsRef = useRef(settings);
+
+  // Sync state globally for 3D loop
+  useEffect(() => {
+    window.bootSequenceFinished = bootFinished;
+  }, [bootFinished]);
 
   const threeObjectsRef = useRef({
     camera: null,
@@ -577,7 +590,7 @@ export default function App() {
         wasmEngineRef.current = { processCommand };
 
         // 2. Start Boot Sequence (Visuals)
-        const bootPromise = runBootSequence(terminalComponentRef.current);
+        const bootPromise = runBootSequence(() => terminalComponentRef.current);
 
         // 3. Fetch Data with Fallback
         let data = {};
@@ -782,6 +795,8 @@ export default function App() {
         if (!isCancelled) {
           isBootingRef.current = false;
           bootFinishedRef.current = true;
+          window.bootSequenceFinished = true;
+          setBootFinished(true);
           setIsBooting(false);
         }
       } catch (error) {
@@ -792,6 +807,8 @@ export default function App() {
         terminalComponentRef.current?.prompt();
         isBootingRef.current = false;
         bootFinishedRef.current = true;
+        window.bootSequenceFinished = true;
+        setBootFinished(true);
         setIsBooting(false);
       }
     };
@@ -1269,7 +1286,8 @@ export default function App() {
         raf = requestAnimationFrame(animate);
 
         // Smooth Camera Transition after Boot
-        if (bootFinishedRef.current && transitionProgress < 1) {
+        const isFinished = window.bootSequenceFinished || bootFinishedRef.current;
+        if (isFinished && transitionProgress < 1) {
           transitionProgress += transitionSpeed;
           if (transitionProgress >= 1) {
             transitionProgress = 1;
@@ -1281,7 +1299,8 @@ export default function App() {
           camera.position.lerpVectors(startCamPos, endCamPos, t);
           currentLookAt.lerpVectors(startLookAt, endLookAt, t);
           camera.lookAt(currentLookAt);
-        } else if (transitionDone) {
+        } else if (transitionDone || transitionProgress >= 1) {
+          camera.position.copy(endCamPos);
           camera.lookAt(endLookAt);
         }
 
