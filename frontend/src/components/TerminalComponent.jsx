@@ -6,6 +6,7 @@ import React, {
 } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
+import "xterm/css/xterm.css";
 import { playKeyClick, playEnterKey, playTabComplete } from "../utils/audioFx";
 
 // --- Autocomplete Data ---
@@ -214,8 +215,8 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
       state.current.suggestion = "";
       state.current.historyIndex = -1;
       state.current.tabPressCount = 0;
-      term.current.reset();
-      term.current.write("\x1b[2J\x1b[3J\x1b[H> ");
+      term.current.clear();
+      term.current.write("\x1b[H\x1b[2J> ");
     },
     prompt: () => {
       if (!term.current) return;

@@ -902,23 +902,23 @@ export default function App() {
       scene.background = t;
     });
 
-    // --- Crisp Neutral Studio Lighting for CRT Body & Bezels ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
+    // --- Crisp Balanced Studio Lighting for Vintage Dark Charcoal CRT ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
     scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x2a1c14, 1.4);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111111, 0.7);
     hemiLight.position.set(0, 10, 0);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
     keyLight.position.set(-2.5, 3.5, 4.0);
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.0);
     fillLight.position.set(3.5, 2.0, 3.0);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.4);
     rimLight.position.set(0, 4.5, -0.5);
     scene.add(rimLight);
 
@@ -1196,11 +1196,11 @@ export default function App() {
             screenMesh = c;
           } else {
             c.visible = true;
-            c.material.metalness = 0.02;
-            c.material.roughness = 0.52;
-            c.material.envMapIntensity = 0.6;
+            c.material.metalness = 0.04;
+            c.material.roughness = 0.65;
+            c.material.envMapIntensity = 0.35;
             if (c.material.color) {
-              c.material.color.setRGB(0.95, 0.95, 0.95);
+              c.material.color.setRGB(0.18, 0.18, 0.18);
             }
           }
           meshIndex++;

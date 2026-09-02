@@ -2,18 +2,35 @@
 
 let audioCtx = null;
 let soundEnabled = true;
+let userHasInteracted = false;
+
+if (typeof window !== "undefined") {
+  const onUserGesture = () => {
+    userHasInteracted = true;
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+    window.removeEventListener("pointerdown", onUserGesture);
+    window.removeEventListener("keydown", onUserGesture);
+    window.removeEventListener("touchstart", onUserGesture);
+  };
+  window.addEventListener("pointerdown", onUserGesture, { passive: true });
+  window.addEventListener("keydown", onUserGesture, { passive: true });
+  window.addEventListener("touchstart", onUserGesture, { passive: true });
+}
 
 function getAudioContext() {
+  if (!userHasInteracted) return null;
   if (!audioCtx) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
     }
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
+  if (audioCtx && audioCtx.state === "suspended") {
     audioCtx.resume().catch(() => {});
   }
-  return audioCtx;
+  return audioCtx && audioCtx.state === "running" ? audioCtx : null;
 }
 
 export function setSoundEnabled(enabled) {
