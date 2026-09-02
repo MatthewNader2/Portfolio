@@ -17,6 +17,7 @@ import { FALLBACK_PORTFOLIO_DATA } from "./fallbackData";
 // --- Components & Assets ---
 import { TerminalComponent } from "./components/TerminalComponent";
 import backgroundUrl from "./assets/background.jpg";
+import { setSoundEnabled, playDegauss } from "./utils/audioFx";
 
 // --- GLOBAL CACHE ---
 const ASCII_CACHE = {
@@ -153,6 +154,7 @@ const runBootSequence = async (terminalGetter) => {
   }
 
   if (!terminal) return;
+  playDegauss();
   const write = (text) => terminal.write(text);
   terminal.clear();
 
@@ -235,7 +237,11 @@ export default function App() {
   const [isBooting, setIsBooting] = useState(true);
   const [bootFinished, setBootFinished] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({ particles: true, glitch: true });
+  const [settings, setSettings] = useState({
+    particles: true,
+    glitch: true,
+    sound: true,
+  });
   const [contextMenu, setContextMenu] = useState(null);
 
   // --- Refs (Logic & 3D) ---
@@ -262,6 +268,7 @@ export default function App() {
   // Sync settings ref
   useEffect(() => {
     settingsRef.current = settings;
+    setSoundEnabled(settings.sound);
     if (terminalElRef.current) {
       if (settings.glitch) {
         terminalElRef.current.classList.add("crt-effects");
@@ -864,7 +871,7 @@ export default function App() {
     webglRenderer.setSize(window.innerWidth, window.innerHeight);
     webglRenderer.outputColorSpace = THREE.SRGBColorSpace;
     webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    webglRenderer.toneMappingExposure = 0.85;
+    webglRenderer.toneMappingExposure = 1.05;
     const webglContainer = document.createElement("div");
     webglContainer.id = "webgl-renderer";
     webglContainer.className = "render-container";
@@ -893,11 +900,30 @@ export default function App() {
       scene.background = t;
     });
 
-    scene.add(new THREE.AmbientLight(0.7));
-    scene.add(new THREE.HemisphereLight(0x87ceeb, 0x444444, 1));
-    const dl = new THREE.DirectionalLight(0xffffff, 2.5);
-    dl.position.set(5, 5, 5);
-    scene.add(dl);
+    // --- Enhanced PBR Studio Lighting for CRT Bezels & Body ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    scene.add(ambientLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x4a3220, 1.8);
+    hemiLight.position.set(0, 10, 0);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    keyLight.position.set(-2.5, 3.5, 4.0);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xddeeff, 2.0);
+    fillLight.position.set(3.5, 2.0, 3.0);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    rimLight.position.set(0, 4.5, -0.5);
+    scene.add(rimLight);
+
+    // Interactive CRT Phosphor Glow Light (Green light radiating from screen onto bezels)
+    const crtGlowLight = new THREE.PointLight(0x33ff66, 0.65, 1.4, 1.5);
+    crtGlowLight.position.set(0, 0.05, 0.22);
+    scene.add(crtGlowLight);
 
     // Dust Particles
     const particleCount = 400;
@@ -1169,8 +1195,9 @@ export default function App() {
           if (meshIndex === 0 || meshIndex === 2) {
             c.visible = false;
           } else {
-            c.material.metalness = 0.4;
-            c.material.roughness = 0.6;
+            c.material.metalness = 0.04;
+            c.material.roughness = 0.38;
+            c.material.envMapIntensity = 1.2;
             c.visible = true;
           }
           meshIndex++;
@@ -1502,7 +1529,7 @@ export default function App() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                marginBottom: "5px",
+                marginBottom: "10px",
                 alignItems: "center",
               }}
             >
@@ -1541,6 +1568,55 @@ export default function App() {
                     position: "absolute",
                     top: 0,
                     left: settings.glitch ? "15px" : 0,
+                    transition: "left 0.2s",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "5px",
+                alignItems: "center",
+              }}
+            >
+              <span>AUDIO FX</span>
+              <div
+                role="switch"
+                aria-checked={settings.sound}
+                aria-label="Toggle Web Audio Sound Effects"
+                tabIndex={0}
+                onClick={() =>
+                  setSettings((s) => ({ ...s, sound: !s.sound }))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    setSettings((s) => ({ ...s, sound: !s.sound }));
+                    e.preventDefault();
+                  }
+                }}
+                style={{
+                  width: "30px",
+                  height: "15px",
+                  border: "1px solid #00ff00",
+                  cursor: "pointer",
+                  position: "relative",
+                  background: settings.sound
+                    ? "rgba(0,255,0,0.2)"
+                    : "transparent",
+                  outline: "none",
+                }}
+              >
+                <div
+                  style={{
+                    width: "13px",
+                    height: "13px",
+                    backgroundColor: settings.sound ? "#00ff00" : "#004400",
+                    position: "absolute",
+                    top: 0,
+                    left: settings.sound ? "15px" : 0,
                     transition: "left 0.2s",
                   }}
                 />
