@@ -3,6 +3,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+    font-family: "Pixelmix";
+    src: url("/assets/pixelmix.ttf") format("truetype");
+}
+
+/* --- BASE STYLES & APP-WIDE CUSTOM CURSOR --- */
 body,
 html {
     margin: 0;
@@ -11,17 +17,13 @@ html {
     height: 100vh;
     overflow: hidden;
     background-color: #000;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M2 2L9.5 21.5L12.5 13.5L20.5 10.5L2 2Z' fill='%2300ff00' stroke='%23002200' stroke-width='1.5'/%3E%3Cpolygon points='4,4 10,18 12.5,12.5 18,10' fill='%2333ff33'/%3E%3C/svg%3E") 2 2, default !important;
 }
 
 #root {
     width: 100%;
     height: 100%;
     position: relative;
-}
-
-@font-face {
-    font-family: "Pixelmix";
-    src: url("/assets/pixelmix.ttf") format("truetype");
 }
 
 .render-container {
@@ -32,55 +34,64 @@ html {
     height: 100%;
 }
 
-/* The CSS renderer must be on top but allow clicks to pass through its container */
 #css-renderer {
-    pointer-events: none; /* IMPORTANT */
+    pointer-events: none;
     z-index: 1;
 }
 
-/* The WebGL canvas is the base layer */
 #webgl-renderer {
     pointer-events: auto;
     z-index: 0;
 }
 
-/* The iframe itself must be interactive */
-.terminal-wrapper iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    pointer-events: auto; /* IMPORTANT */
+/* --- TERMINAL SPECIFIC CUSTOM CURSOR (Inside CRT Screen) --- */
+#terminal-div,
+#terminal-div *,
+.xterm,
+.xterm-screen,
+.xterm-rows,
+.xterm-viewport {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='24' viewBox='0 0 20 24'%3E%3Cline x1='10' y1='2' x2='10' y2='22' stroke='%2300ff00' stroke-width='2'/%3E%3Cline x1='4' y1='2' x2='16' y2='2' stroke='%2300ff00' stroke-width='2'/%3E%3Cline x1='4' y1='22' x2='16' y2='22' stroke='%2300ff00' stroke-width='2'/%3E%3Crect x='8' y='9' width='4' height='6' fill='%2333ff33'/%3E%3C/svg%3E") 10 12, text !important;
 }
 
-/* --- SCROLLBARS --- */
-.xterm .xterm-viewport::-webkit-scrollbar {
-    width: 4px;
-}
-.xterm .xterm-viewport::-webkit-scrollbar-track {
-    background: rgba(0, 20, 0, 0.3);
-}
-.xterm .xterm-viewport::-webkit-scrollbar-thumb {
-    background: rgba(0, 255, 0, 0.35);
-    box-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
-    border-radius: 2px;
-}
-.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 255, 0, 0.75);
-}
-
-/* --- CURSOR UTILS --- */
+/* Interactive Element Hover Cursor (Links & Buttons) */
 body.force-pointer,
-body.force-pointer * {
-    cursor: pointer !important;
-}
-body.force-text,
-body.force-text * {
-    cursor: text !important;
+body.force-pointer *,
+a,
+button,
+[role="button"],
+[role="switch"],
+.force-pointer {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M8 2v10l-2.5-2.5a2 2 0 0 0-2.8 2.8l6.3 6.3a4 4 0 0 0 2.8 1.2h6.2a4 4 0 0 0 4-4V10a2 2 0 0 0-4 0v1h-1V7a2 2 0 0 0-4 0v4h-1V4a2 2 0 0 0-4 0v-2a2 2 0 0 0-4 0z' fill='%2300ff00' stroke='%23002200' stroke-width='1.2'/%3E%3C/svg%3E") 8 2, pointer !important;
 }
 
-/* --- CRT / GLITCH EFFECTS (CSS ONLY) --- */
+/* --- MINIMAL TRANSPARENT SCROLLBAR (No Track Background) --- */
+.xterm .xterm-viewport::-webkit-scrollbar {
+    width: 3px;
+    background: transparent !important;
+}
 
-/* 1. Scanlines Overlay */
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 0, 0.45);
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+    border-radius: 3px;
+    border: none !important;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 0, 0.85);
+    box-shadow: 0 0 8px rgba(0, 255, 0, 1);
+}
+
+/* --- CRT / GLITCH & VIGNETTE EFFECTS (CSS ONLY) --- */
+
+/* 1. Scanlines & Screen Glass Glare Overlay */
 .crt-scanlines::before {
     content: " ";
     display: block;
@@ -90,81 +101,57 @@ body.force-text * {
     bottom: 0;
     right: 0;
     background:
-        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+        radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 60%, rgba(0, 15, 0, 0.4) 100%),
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%),
         linear-gradient(
             90deg,
-            rgba(255, 0, 0, 0.06),
+            rgba(255, 0, 0, 0.04),
             rgba(0, 255, 0, 0.02),
-            rgba(0, 0, 255, 0.06)
+            rgba(0, 0, 255, 0.04)
         );
     z-index: 10;
     background-size:
+        100% 100%,
         100% 2px,
         3px 100%;
     pointer-events: none;
 }
 
-/* 2. Text Flicker Animation */
+/* 2. Text Phosphor Aura & Flicker */
 @keyframes textShadow {
     0% {
         text-shadow:
-            0.4389924193300864px 0 1px rgba(0, 30, 255, 0.5),
-            -0.4389924193300864px 0 1px rgba(255, 0, 80, 0.3),
-            0 0 3px;
+            0.5px 0 1px rgba(0, 30, 255, 0.4),
+            -0.5px 0 1px rgba(255, 0, 80, 0.25),
+            0 0 3px rgba(0, 255, 0, 0.6);
     }
     5% {
         text-shadow:
-            2.7928974010788217px 0 1px rgba(0, 30, 255, 0.5),
-            -2.7928974010788217px 0 1px rgba(255, 0, 80, 0.3),
-            0 0 3px;
+            2px 0 1px rgba(0, 30, 255, 0.4),
+            -2px 0 1px rgba(255, 0, 80, 0.25),
+            0 0 4px rgba(0, 255, 0, 0.8);
     }
     100% {
         text-shadow:
-            0.4389924193300864px 0 1px rgba(0, 30, 255, 0.5),
-            -0.4389924193300864px 0 1px rgba(255, 0, 80, 0.3),
-            0 0 3px;
+            0.5px 0 1px rgba(0, 30, 255, 0.4),
+            -0.5px 0 1px rgba(255, 0, 80, 0.25),
+            0 0 3px rgba(0, 255, 0, 0.6);
     }
 }
 
-/* 3. Screen Shake/Distortion */
 @keyframes crt-flicker {
-    0% {
-        opacity: 0.97;
-    }
-    5% {
-        opacity: 0.95;
-    }
-    10% {
-        opacity: 0.9;
-    }
-    15% {
-        opacity: 0.95;
-    }
-    20% {
-        opacity: 0.99;
-    }
-    50% {
-        opacity: 0.95;
-    }
-    55% {
-        opacity: 0.9;
-    }
-    60% {
-        opacity: 0.95;
-    }
-    80% {
-        opacity: 0.98;
-    }
-    100% {
-        opacity: 0.96;
-    }
+    0% { opacity: 0.98; }
+    10% { opacity: 0.95; }
+    20% { opacity: 0.99; }
+    50% { opacity: 0.96; }
+    80% { opacity: 0.99; }
+    100% { opacity: 0.97; }
 }
 
 .crt-effects {
-    animation: crt-flicker 0.15s infinite;
-    text-shadow: 1px 0 2px rgba(0, 255, 0, 0.6);
+    animation: crt-flicker 0.18s infinite;
 }
 
 .crt-effects .xterm-rows {
-    animation: textShadow 1.6s infinite;
+    animation: textShadow 1.8s infinite;
 }

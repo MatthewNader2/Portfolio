@@ -6,8 +6,7 @@ import React, {
 } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
-import "xterm/css/xterm.css";
-import { playKeyClick, playTabComplete } from "../utils/audioFx";
+import { playKeyClick, playEnterKey, playTabComplete } from "../utils/audioFx";
 
 // --- Autocomplete Data ---
 const AVAILABLE_COMMANDS = [
@@ -158,9 +157,9 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
   };
 
   const handleSpecialKey = (key) => {
-    playKeyClick();
-    const s = state.current;
     if (key === "Enter") {
+      playEnterKey();
+      const s = state.current;
       const trimmedLine = s.currentLine.trim();
       if (trimmedLine) {
         term.current.write("\r\n");
@@ -177,6 +176,8 @@ export const TerminalComponent = forwardRef(({ onCommand }, ref) => {
       s.historyIndex = -1;
       s.tabPressCount = 0;
     } else if (key === "Backspace") {
+      playKeyClick();
+      const s = state.current;
       if (s.cursorIndex > 0) {
         s.currentLine =
           s.currentLine.slice(0, s.cursorIndex - 1) +

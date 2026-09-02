@@ -36,31 +36,29 @@ const GearIcon = () => (
 );
 
 const FALLBACK_ICONS = {
-  "c": "https://cdn.simpleicons.org/c/A8B9CC",
-  "c++": "https://cdn.simpleicons.org/cplusplus/00599C",
-  matlab: "https://cdn.simpleicons.org/matlab/0076A8",
-  "c#": "https://cdn.simpleicons.org/csharp/239120",
-  "three.js": "https://cdn.simpleicons.org/threedotjs/FFFFFF",
-  react: "https://cdn.simpleicons.org/react/61DAFB",
-  python: "https://cdn.simpleicons.org/python/3776AB",
-  javascript: "https://cdn.simpleicons.org/javascript/F7DF1E",
-  typescript: "https://cdn.simpleicons.org/typescript/3178C6",
-  linux: "https://cdn.simpleicons.org/linux/FCC624",
-  git: "https://cdn.simpleicons.org/git/F05032",
-  docker: "https://cdn.simpleicons.org/docker/2496ED",
-  firebase: "https://cdn.simpleicons.org/firebase/FFCA28",
-  arduino: "https://cdn.simpleicons.org/arduino/00979D",
-  unity: "https://cdn.simpleicons.org/unity/FFFFFF",
-  opencv: "https://cdn.simpleicons.org/opencv/5C3EE8",
-  pytorch: "https://cdn.simpleicons.org/pytorch/EE4C2C",
-  flask: "https://cdn.simpleicons.org/flask/FFFFFF",
-  bash: "https://cdn.simpleicons.org/gnu-bash/FFFFFF",
-  rust: "https://cdn.simpleicons.org/rust/FFFFFF",
-  tailwindcss: "https://cdn.simpleicons.org/tailwindcss/06B6D4",
-  dotnet: "https://cdn.simpleicons.org/dotnet/512BD4",
-  ros: "https://cdn.simpleicons.org/ros/22314E",
-  onnx: "https://cdn.simpleicons.org/onnx/005CED",
-  yolo: "https://cdn.simpleicons.org/opencv/5C3EE8",
+  "c": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/c/c-original.svg",
+  "c++": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg",
+  "c/c++": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg",
+  matlab: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/matlab/matlab-original.svg",
+  "c#": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/csharp/csharp-original.svg",
+  "three.js": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/threejs/threejs-original.svg",
+  react: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+  python: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
+  javascript: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg",
+  typescript: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg",
+  linux: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg",
+  git: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg",
+  docker: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg",
+  firebase: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/firebase/firebase-plain.svg",
+  arduino: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/arduino/arduino-original.svg",
+  unity: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/unity/unity-original.svg",
+  opencv: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/opencv/opencv-original.svg",
+  pytorch: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytorch/pytorch-original.svg",
+  flask: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flask/flask-original.svg",
+  bash: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/bash/bash-original.svg",
+  rust: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-original.svg",
+  ros: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/ros/ros-original.svg",
+  cmake: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cmake/cmake-original.svg",
 };
 
 // --- HELPERS ---
@@ -691,19 +689,23 @@ export default function App() {
             const itemsFormatted = await Promise.all(
               items.map(async (item) => {
                 const lowerName = String(item).toLowerCase().trim();
-                const iconKey = Object.keys(iconMap).find(
-                  (k) =>
-                    lowerName === k ||
-                    lowerName.includes(k) ||
-                    k.includes(lowerName),
-                );
+                const iconKey = Object.keys(iconMap).find((k) => {
+                  const kLower = k.toLowerCase().trim();
+                  return (
+                    lowerName === kLower ||
+                    ((lowerName === "c/c++" || lowerName === "c / c++") &&
+                      (kLower === "c" || kLower === "c++" || kLower === "c/c++"))
+                  );
+                });
                 const iconUrl = iconKey ? iconMap[iconKey] : null;
 
                 if (iconUrl) {
                   const ascii = await generateAsciiArt(iconUrl, 24);
-                  const placeholder = `[[ICON:${lowerName}]]`;
-                  ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
-                  return `${placeholder}\n   >> \x1b[1;32m${item}\x1b[0m`;
+                  if (ascii) {
+                    const placeholder = `[[ICON:${lowerName}]]`;
+                    ASCII_CACHE.icons[lowerName] = `\n${ascii}\n`;
+                    return `${placeholder}\n   >> \x1b[1;32m${item}\x1b[0m`;
+                  }
                 }
                 return `   >> \x1b[1;32m${item}\x1b[0m`;
               }),
@@ -900,30 +902,25 @@ export default function App() {
       scene.background = t;
     });
 
-    // --- Enhanced PBR Studio Lighting for CRT Bezels & Body ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    // --- Crisp Neutral Studio Lighting for CRT Body & Bezels ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
     scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x4a3220, 1.8);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x2a1c14, 1.4);
     hemiLight.position.set(0, 10, 0);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
     keyLight.position.set(-2.5, 3.5, 4.0);
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xddeeff, 2.0);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.8);
     fillLight.position.set(3.5, 2.0, 3.0);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 2.2);
     rimLight.position.set(0, 4.5, -0.5);
     scene.add(rimLight);
-
-    // Interactive CRT Phosphor Glow Light (Green light radiating from screen onto bezels)
-    const crtGlowLight = new THREE.PointLight(0x33ff66, 0.65, 1.4, 1.5);
-    crtGlowLight.position.set(0, 0.05, 0.22);
-    scene.add(crtGlowLight);
 
     // Dust Particles
     const particleCount = 400;
@@ -1199,11 +1196,11 @@ export default function App() {
             screenMesh = c;
           } else {
             c.visible = true;
-            c.material.metalness = 0.05;
-            c.material.roughness = 0.35;
-            c.material.envMapIntensity = 1.5;
+            c.material.metalness = 0.02;
+            c.material.roughness = 0.52;
+            c.material.envMapIntensity = 0.6;
             if (c.material.color) {
-              c.material.color.setRGB(1.0, 1.0, 1.0);
+              c.material.color.setRGB(0.95, 0.95, 0.95);
             }
           }
           meshIndex++;
