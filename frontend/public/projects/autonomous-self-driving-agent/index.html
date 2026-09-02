@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Autonomous Self-Driving Agent | Matthew Nader Fawzy</title>
+    <meta name="title" content="Autonomous Self-Driving Agent | Matthew Nader Fawzy" />
+    <meta name="description" content="Autonomous self-driving vehicle agent engineered by Matthew Nader Fawzy using Python, OpenCV, DBSCAN, RANSAC, and PID trajectory control achieving 99.97% perception accuracy." />
+    <meta name="author" content="Matthew Nader Fawzy" />
+    <link rel="canonical" href="https://matthew-nader.web.app/projects/autonomous-self-driving-agent" />
+    <link rel="icon" type="image/x-icon" href="/AppIcon.ico" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://matthew-nader.web.app/projects/autonomous-self-driving-agent" />
+    <meta property="og:title" content="Autonomous Self-Driving Agent — Matthew Nader Fawzy" />
+    <meta property="og:description" content="Perception pipeline with OpenCV, DBSCAN, RANSAC and PID trajectory controller for autonomous navigation." />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "Autonomous Self-Driving Agent",
+      "author": {
+        "@type": "Person",
+        "name": "Matthew Nader Fawzy",
+        "url": "https://matthew-nader.web.app/"
+      },
+      "programmingLanguage": ["Python", "OpenCV", "Flask"],
+      "codeRepository": "https://github.com/MatthewNader2/SlowRoads_SelfDriving_Agent",
+      "description": "Full-stack autonomous self-driving vehicle agent utilizing real-time computer vision, lane boundary detection with DBSCAN and RANSAC, and PID trajectory control."
+    }
+    </script>
+    <style>
+        :root { --bg: #0a0e14; --card-bg: #111827; --text: #e2e8f0; --accent: #00ff66; --cyan: #38bdf8; --border: #1e293b; }
+        body { background-color: var(--bg); color: var(--text); font-family: ui-monospace, monospace; line-height: 1.7; margin: 0; padding: 2rem 1rem; }
+        .container { max-width: 820px; margin: 0 auto; }
+        .back-btn { display: inline-block; background: rgba(0, 255, 102, 0.1); color: var(--accent); border: 1px solid var(--accent); padding: 0.6rem 1.2rem; text-decoration: none; font-weight: bold; border-radius: 4px; margin-bottom: 1.5rem; }
+        .back-btn:hover { background: var(--accent); color: #000; }
+        h1 { color: var(--accent); font-size: 1.9rem; margin: 0 0 0.5rem 0; }
+        h2 { color: var(--accent); font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-top: 2rem; }
+        .badge { display: inline-block; background: rgba(56, 189, 248, 0.15); color: var(--cyan); font-size: 0.85rem; padding: 0.2rem 0.6rem; border-radius: 4px; margin-right: 0.4rem; margin-bottom: 0.4rem; }
+        a { color: var(--cyan); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); padding: 1.25rem; border-radius: 6px; margin: 1rem 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">&larr; Launch 3D Interactive Terminal</a>
+        <article>
+            <header>
+                <h1>Autonomous Self-Driving Agent</h1>
+                <p><strong>Author:</strong> Matthew Nader Fawzy | Communication & Information Engineer</p>
+                <div>
+                    <span class="badge">Python</span>
+                    <span class="badge">OpenCV</span>
+                    <span class="badge">DBSCAN</span>
+                    <span class="badge">RANSAC</span>
+                    <span class="badge">PID Control</span>
+                    <span class="badge">Computer Vision</span>
+                </div>
+            </header>
+
+            <h2>Overview</h2>
+            <p>
+                Architected and implemented an autonomous vehicle agent capable of navigating complex procedural road environments in real-time. The system processes direct visual streams to extract road contours, track lane curvature, and execute steering and throttle commands via a closed-loop controller.
+            </p>
+
+            <h2>Perception Pipeline & Algorithms</h2>
+            <ul>
+                <li><strong>Edge & Contour Filtering:</strong> Custom OpenCV pipeline isolating road surface boundaries and terrain contrast under variable lighting conditions.</li>
+                <li><strong>Spatial Clustering (DBSCAN):</strong> Filters out noise, outliers, and environmental debris from visual feature clouds.</li>
+                <li><strong>Robust Line Fitting (RANSAC):</strong> Fits accurate polynomial curves to lane boundaries even in high-noise visual environments, achieving 99.97% perception reliability.</li>
+                <li><strong>Trajectory Control:</strong> Multi-stage PID controller with genetic algorithm gain tuning, maintaining center-lane stability across extreme curvature.</li>
+            </ul>
+
+            <h2>Source Code & Verification</h2>
+            <div class="card">
+                <p><strong>GitHub Repository:</strong> <a href="https://github.com/MatthewNader2/SlowRoads_SelfDriving_Agent" target="_blank" rel="noopener noreferrer">github.com/MatthewNader2/SlowRoads_SelfDriving_Agent</a></p>
+                <p><strong>Developer Portfolio:</strong> <a href="https://matthew-nader.web.app/">Matthew Nader Fawzy Portfolio</a></p>
+            </div>
+        </article>
+    </div>
+</body>
+</html>

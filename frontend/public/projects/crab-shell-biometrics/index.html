@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crab Shell Biometric Width Estimation | Matthew Nader Fawzy</title>
+    <meta name="title" content="Crab Shell Biometric Width Estimation | Matthew Nader Fawzy" />
+    <meta name="description" content="Computer vision system estimating crab shell dimensions from underwater ROV footage using Detectron2 instance segmentation and spatial calibration, developed by Matthew Nader Fawzy." />
+    <meta name="author" content="Matthew Nader Fawzy" />
+    <link rel="canonical" href="https://matthew-nader.web.app/projects/crab-shell-biometrics" />
+    <link rel="icon" type="image/x-icon" href="/AppIcon.ico" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://matthew-nader.web.app/projects/crab-shell-biometrics" />
+    <meta property="og:title" content="Crab Shell Biometric Width Estimation — Matthew Nader Fawzy" />
+    <meta property="og:description" content="Instance segmentation and biometric measurement system for marine specimen analysis." />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "Crab Shell Biometric Width Estimation",
+      "author": {
+        "@type": "Person",
+        "name": "Matthew Nader Fawzy",
+        "url": "https://matthew-nader.web.app/"
+      },
+      "programmingLanguage": ["Python", "PyTorch", "Detectron2"],
+      "codeRepository": "https://github.com/MatthewNader2/Crab-Shell-Width-Estimation",
+      "description": "Deep instance segmentation pipeline calculating real-world biometric carapace width measurements from optical marine video."
+    }
+    </script>
+    <style>
+        :root { --bg: #0a0e14; --card-bg: #111827; --text: #e2e8f0; --accent: #00ff66; --cyan: #38bdf8; --border: #1e293b; }
+        body { background-color: var(--bg); color: var(--text); font-family: ui-monospace, monospace; line-height: 1.7; margin: 0; padding: 2rem 1rem; }
+        .container { max-width: 820px; margin: 0 auto; }
+        .back-btn { display: inline-block; background: rgba(0, 255, 102, 0.1); color: var(--accent); border: 1px solid var(--accent); padding: 0.6rem 1.2rem; text-decoration: none; font-weight: bold; border-radius: 4px; margin-bottom: 1.5rem; }
+        .back-btn:hover { background: var(--accent); color: #000; }
+        h1 { color: var(--accent); font-size: 1.9rem; margin: 0 0 0.5rem 0; }
+        h2 { color: var(--accent); font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-top: 2rem; }
+        .badge { display: inline-block; background: rgba(56, 189, 248, 0.15); color: var(--cyan); font-size: 0.85rem; padding: 0.2rem 0.6rem; border-radius: 4px; margin-right: 0.4rem; margin-bottom: 0.4rem; }
+        a { color: var(--cyan); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); padding: 1.25rem; border-radius: 6px; margin: 1rem 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">&larr; Launch 3D Interactive Terminal</a>
+        <article>
+            <header>
+                <h1>Crab Shell Biometric Width Estimation</h1>
+                <p><strong>Author:</strong> Matthew Nader Fawzy | Communication & Information Engineer</p>
+                <div>
+                    <span class="badge">Python</span>
+                    <span class="badge">Detectron2</span>
+                    <span class="badge">PyTorch</span>
+                    <span class="badge">Instance Segmentation</span>
+                    <span class="badge">Biometrics</span>
+                </div>
+            </header>
+
+            <h2>Overview</h2>
+            <p>
+                Engineered an accurate non-invasive biometric measurement system to estimate the carapace width of marine crabs from underwater video streams. The system replaces manual specimen capture with automated optical analysis, aiding marine conservation and ecological surveying.
+            </p>
+
+            <h2>Engineering Pipeline</h2>
+            <ul>
+                <li><strong>Instance Segmentation:</strong> Fine-tuned Detectron2 Mask R-CNN architectures to isolate complex organic silhouettes against cluttered seabed backgrounds.</li>
+                <li><strong>Principal Component Analysis (PCA):</strong> Determines the major biometric axis of the segmented mask to find the true morphological carapace width.</li>
+                <li><strong>Laser Scale Calibration:</strong> Integrates parallel laser scaler point detection to calculate dynamic pixel-to-millimeter conversion ratios regardless of ROV distance.</li>
+            </ul>
+
+            <h2>Source Code & Verification</h2>
+            <div class="card">
+                <p><strong>GitHub Repository:</strong> <a href="https://github.com/MatthewNader2/Crab-Shell-Width-Estimation" target="_blank" rel="noopener noreferrer">github.com/MatthewNader2/Crab-Shell-Width-Estimation</a></p>
+                <p><strong>Developer Portfolio:</strong> <a href="https://matthew-nader.web.app/">Matthew Nader Fawzy Portfolio</a></p>
+            </div>
+        </article>
+    </div>
+</body>
+</html>

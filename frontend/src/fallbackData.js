@@ -1,16 +1,17 @@
 // Default fallback portfolio data when Firebase is unconfigured or offline
 export const FALLBACK_PORTFOLIO_DATA = {
   about: {
-    content: `NAME: Matthew Nader
-ROLE: Software Engineer | Computer Vision & Systems Developer
-EDUCATION: University of Science and Technology in Zewail City (2027)
+    content: `NAME: Matthew Nader Fawzy
+ROLE: Communication and Information Engineer | Computer Vision & Robotics
+EDUCATION: University of Science and Technology at Zewail City (2027)
 
-Passionate software engineer specialized in high-performance computing, Computer Vision (YOLO/PyTorch/OpenCV), Embedded Systems, and 3D Web Graphics (Three.js/WebAssembly). Proven track record leading robotics engineering teams and building autonomous agents.`
+Passionate engineer specialized in high-performance computing, Computer Vision (YOLO/PyTorch/OpenCV), Embedded Systems, and 3D Web Graphics (Three.js/WebAssembly). Proven track record leading robotics engineering teams and building autonomous agents.`
   },
   contact: {
     email: "matthewnader2@gmail.com",
-    linkedin: "https://linkedin.com/in/matthew-nader",
-    github_profile: "https://github.com/MatthewNader2"
+    linkedin: "https://www.linkedin.com/in/matthew-nader-11b57b1a5/",
+    github_profile: "https://github.com/MatthewNader2",
+    wuzzuf: "https://wuzzuf.net/me/Matthew-Nader-6464401c16"
   },
   education: {
     degree: "B.S. in Computer Science & Engineering",

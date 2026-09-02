@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Underwater Marine Debris Classifier | Matthew Nader Fawzy</title>
+    <meta name="title" content="Underwater Marine Debris Classifier | Matthew Nader Fawzy" />
+    <meta name="description" content="AI-powered computer vision system to detect and classify submerged marine debris and plastics from underwater ROV video streams, created by Matthew Nader Fawzy." />
+    <meta name="author" content="Matthew Nader Fawzy" />
+    <link rel="canonical" href="https://matthew-nader.web.app/projects/underwater-marine-debris" />
+    <link rel="icon" type="image/x-icon" href="/AppIcon.ico" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://matthew-nader.web.app/projects/underwater-marine-debris" />
+    <meta property="og:title" content="Underwater Marine Debris Classifier — Matthew Nader Fawzy" />
+    <meta property="og:description" content="AI-powered computer vision system for underwater ROV marine debris detection and classification using YOLO." />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "Underwater Marine Debris Classifier",
+      "author": {
+        "@type": "Person",
+        "name": "Matthew Nader Fawzy",
+        "url": "https://matthew-nader.web.app/"
+      },
+      "programmingLanguage": ["Python", "YOLO", "OpenCV", "PyTorch"],
+      "codeRepository": "https://github.com/MatthewNader2/Underwater-Trash-Detection",
+      "description": "Deep learning object detection model optimized for underwater optical conditions to classify submerged plastics and ocean debris."
+    }
+    </script>
+    <style>
+        :root { --bg: #0a0e14; --card-bg: #111827; --text: #e2e8f0; --accent: #00ff66; --cyan: #38bdf8; --border: #1e293b; }
+        body { background-color: var(--bg); color: var(--text); font-family: ui-monospace, monospace; line-height: 1.7; margin: 0; padding: 2rem 1rem; }
+        .container { max-width: 820px; margin: 0 auto; }
+        .back-btn { display: inline-block; background: rgba(0, 255, 102, 0.1); color: var(--accent); border: 1px solid var(--accent); padding: 0.6rem 1.2rem; text-decoration: none; font-weight: bold; border-radius: 4px; margin-bottom: 1.5rem; }
+        .back-btn:hover { background: var(--accent); color: #000; }
+        h1 { color: var(--accent); font-size: 1.9rem; margin: 0 0 0.5rem 0; }
+        h2 { color: var(--accent); font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-top: 2rem; }
+        .badge { display: inline-block; background: rgba(56, 189, 248, 0.15); color: var(--cyan); font-size: 0.85rem; padding: 0.2rem 0.6rem; border-radius: 4px; margin-right: 0.4rem; margin-bottom: 0.4rem; }
+        a { color: var(--cyan); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); padding: 1.25rem; border-radius: 6px; margin: 1rem 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">&larr; Launch 3D Interactive Terminal</a>
+        <article>
+            <header>
+                <h1>Underwater Marine Debris Classifier</h1>
+                <p><strong>Author:</strong> Matthew Nader Fawzy | Communication & Information Engineer</p>
+                <div>
+                    <span class="badge">Python</span>
+                    <span class="badge">YOLO</span>
+                    <span class="badge">OpenCV</span>
+                    <span class="badge">PyTorch</span>
+                    <span class="badge">Marine Robotics</span>
+                </div>
+            </header>
+
+            <h2>Overview</h2>
+            <p>
+                Constructed a specialized deep learning computer vision model to identify and locate submerged pollutants, nets, plastics, and debris from live ROV camera feeds in real time. Designed specifically to handle underwater optical challenges such as light attenuation, particulate backscatter, and color distortion.
+            </p>
+
+            <h2>Architecture & Features</h2>
+            <ul>
+                <li><strong>Underwater Image Preprocessing:</strong> CLAHE (Contrast Limited Adaptive Histogram Equalization) and chromatic channel balancing to compensate for red light absorption in ocean depths.</li>
+                <li><strong>YOLO Deep Learning Backbone:</strong> Custom fine-tuned weights for marine debris categories with high mean Average Precision (mAP).</li>
+                <li><strong>Edge Inference:</strong> Optimized ONNX Runtime export for deployment on low-power onboard companion computers inside underwater vehicles.</li>
+            </ul>
+
+            <h2>Source Code & Verification</h2>
+            <div class="card">
+                <p><strong>GitHub Repository:</strong> <a href="https://github.com/MatthewNader2/Underwater-Trash-Detection" target="_blank" rel="noopener noreferrer">github.com/MatthewNader2/Underwater-Trash-Detection</a></p>
+                <p><strong>Developer Portfolio:</strong> <a href="https://matthew-nader.web.app/">Matthew Nader Fawzy Portfolio</a></p>
+            </div>
+        </article>
+    </div>
+</body>
+</html>

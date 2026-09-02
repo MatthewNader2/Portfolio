@@ -73,12 +73,13 @@ async function main() {
 
   // 1. Personal Info
   await writeDoc('personal_info', 'main', {
-    name: 'Matthew Nader',
+    name: 'Matthew Nader Fawzy',
     email: 'matthewnader2@gmail.com',
     github: 'https://github.com/MatthewNader2',
     linkedin: 'https://www.linkedin.com/in/matthew-nader-11b57b1a5/',
+    wuzzuf: 'https://wuzzuf.net/me/Matthew-Nader-6464401c16',
     profile_picture_url: 'https://pub-817c933b19764d5fa88e1ff47c24f00e.r2.dev/Profile_Picture.jpeg',
-    description: 'Passionate software engineer specialized in high-performance computing, Computer Vision (YOLO / PyTorch / OpenCV), Embedded Systems, and 3D Web Graphics (Three.js / WebAssembly). Proven track record leading robotics engineering teams and building autonomous agents.',
+    description: 'Communication and Information Engineer specializing in computer vision, artificial intelligence, robotics, low-level systems (C/C++, WebAssembly), and software engineering. Proven track record leading robotics engineering teams and building autonomous systems.',
   });
 
   // 2. Education

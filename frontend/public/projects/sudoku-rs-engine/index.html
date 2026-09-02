@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sudoku Solver & Engine in Rust | Matthew Nader Fawzy</title>
+    <meta name="title" content="Sudoku Solver & Engine in Rust | Matthew Nader Fawzy" />
+    <meta name="description" content="High-speed Sudoku generator and solver in Rust utilizing bit manipulation, backtracking search, and constraint propagation, developed by Matthew Nader Fawzy." />
+    <meta name="author" content="Matthew Nader Fawzy" />
+    <link rel="canonical" href="https://matthew-nader.web.app/projects/sudoku-rs-engine" />
+    <link rel="icon" type="image/x-icon" href="/AppIcon.ico" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://matthew-nader.web.app/projects/sudoku-rs-engine" />
+    <meta property="og:title" content="Sudoku Solver & Engine in Rust — Matthew Nader Fawzy" />
+    <meta property="og:description" content="High-performance puzzle solver using bit manipulation and constraint propagation in Rust." />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "Sudoku Solver & Engine in Rust",
+      "author": {
+        "@type": "Person",
+        "name": "Matthew Nader Fawzy",
+        "url": "https://matthew-nader.web.app/"
+      },
+      "programmingLanguage": ["Rust", "Systems Programming"],
+      "codeRepository": "https://github.com/MatthewNader2/sudoku-rs",
+      "description": "Blazing-fast Sudoku puzzle generator and solver written in Rust utilizing bit manipulation and constraint propagation."
+    }
+    </script>
+    <style>
+        :root { --bg: #0a0e14; --card-bg: #111827; --text: #e2e8f0; --accent: #00ff66; --cyan: #38bdf8; --border: #1e293b; }
+        body { background-color: var(--bg); color: var(--text); font-family: ui-monospace, monospace; line-height: 1.7; margin: 0; padding: 2rem 1rem; }
+        .container { max-width: 820px; margin: 0 auto; }
+        .back-btn { display: inline-block; background: rgba(0, 255, 102, 0.1); color: var(--accent); border: 1px solid var(--accent); padding: 0.6rem 1.2rem; text-decoration: none; font-weight: bold; border-radius: 4px; margin-bottom: 1.5rem; }
+        .back-btn:hover { background: var(--accent); color: #000; }
+        h1 { color: var(--accent); font-size: 1.9rem; margin: 0 0 0.5rem 0; }
+        h2 { color: var(--accent); font-size: 1.3rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-top: 2rem; }
+        .badge { display: inline-block; background: rgba(56, 189, 248, 0.15); color: var(--cyan); font-size: 0.85rem; padding: 0.2rem 0.6rem; border-radius: 4px; margin-right: 0.4rem; margin-bottom: 0.4rem; }
+        a { color: var(--cyan); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); padding: 1.25rem; border-radius: 6px; margin: 1rem 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">&larr; Launch 3D Interactive Terminal</a>
+        <article>
+            <header>
+                <h1>Sudoku Solver & Engine in Rust</h1>
+                <p><strong>Author:</strong> Matthew Nader Fawzy | Communication & Information Engineer</p>
+                <div>
+                    <span class="badge">Rust</span>
+                    <span class="badge">Bit Manipulation</span>
+                    <span class="badge">Constraint Propagation</span>
+                    <span class="badge">Algorithms</span>
+                    <span class="badge">Systems Programming</span>
+                </div>
+            </header>
+
+            <h2>Overview</h2>
+            <p>
+                A high-speed Sudoku engine and solving utility developed in Rust. Designed to demonstrate deterministic constraint satisfaction algorithms, zero-cost abstractions, and memory-safe systems programming.
+            </p>
+
+            <h2>Algorithmic Architecture</h2>
+            <ul>
+                <li><strong>Bitmask Grid Representation:</strong> Represents candidate numbers using 16-bit integer bitmasks, enabling simultaneous elimination operations in single CPU clock cycles.</li>
+                <li><strong>Constraint Propagation:</strong> Applies naked singles and hidden pairs logic before falling back to search trees, solving 95%+ of puzzles without recursive branching.</li>
+                <li><strong>Zero Allocation Solver:</strong> Eliminates heap allocations during search operations for predictable microsecond execution latency.</li>
+            </ul>
+
+            <h2>Source Code & Verification</h2>
+            <div class="card">
+                <p><strong>GitHub Repository:</strong> <a href="https://github.com/MatthewNader2/sudoku-rs" target="_blank" rel="noopener noreferrer">github.com/MatthewNader2/sudoku-rs</a></p>
+                <p><strong>Developer Portfolio:</strong> <a href="https://matthew-nader.web.app/">Matthew Nader Fawzy Portfolio</a></p>
+            </div>
+        </article>
+    </div>
+</body>
+</html>
