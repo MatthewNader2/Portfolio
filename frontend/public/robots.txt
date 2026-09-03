@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 
 Sitemap: https://matthew-nader.web.app/sitemap.xml
+Sitemap: https://matthew-nader.web.app/sitemap.txt
 
-# IndexNow - Instant indexing for Bing, DuckDuckGo, Yandex, and others
-# Key: ce06d381c8209dc7e32b5fe7cd803ee6
+# IndexNow - Instant indexing for Bing, DuckDuckGo, Yandex, etc.
+# Key: 4cf603a9bb6e4d6289f74915a492eac3

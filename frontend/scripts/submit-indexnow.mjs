@@ -11,7 +11,7 @@
  * to submit sitemaps to Google.
  */
 
-const INDEXNOW_KEY = "ce06d381c8209dc7e32b5fe7cd803ee6";
+const INDEXNOW_KEY = "4cf603a9bb6e4d6289f74915a492eac3";
 const HOST = "matthew-nader.web.app";
 const KEY_LOCATION = `https://${HOST}/${INDEXNOW_KEY}.txt`;
 
