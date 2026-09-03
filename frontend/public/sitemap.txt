@@ -1,9 +1,0 @@
-https://matthew-nader.web.app/
-https://matthew-nader.web.app/about/
-https://matthew-nader.web.app/projects/autonomous-self-driving-agent/
-https://matthew-nader.web.app/projects/cpu-process-scheduler/
-https://matthew-nader.web.app/projects/coral-reef-health-monitoring/
-https://matthew-nader.web.app/projects/underwater-marine-debris/
-https://matthew-nader.web.app/projects/crab-shell-biometrics/
-https://matthew-nader.web.app/projects/3d-crt-terminal-portfolio/
-https://matthew-nader.web.app/projects/sudoku-rs-engine/
