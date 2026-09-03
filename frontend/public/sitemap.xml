@@ -2,56 +2,38 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://matthew-nader.web.app/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/about/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/projects/autonomous-self-driving-agent/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/projects/cpu-process-scheduler/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/projects/coral-reef-health-monitoring/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/projects/underwater-marine-debris/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/projects/crab-shell-biometrics/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/projects/3d-crt-terminal-portfolio/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
   <url>
     <loc>https://matthew-nader.web.app/projects/sudoku-rs-engine/</loc>
-    <lastmod>2026-09-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2026-09-03</lastmod>
   </url>
 </urlset>
