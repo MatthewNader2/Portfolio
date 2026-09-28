@@ -1,5 +1,29 @@
 [
   {
+    "repo": "Portfolio",
+    "title": "Portfolio",
+    "subtitle": "JavaScript | 4 ★",
+    "description": "Open-source JavaScript project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Portfolio",
+    "stars": 4,
+    "language": "JavaScript",
+    "topics": [
+      "c-compiler",
+      "css3d",
+      "portfolio",
+      "portfolio-project",
+      "portfolio-site",
+      "portfolio-template",
+      "portfolio-website",
+      "retro-ui",
+      "threejs",
+      "wasm",
+      "webassembly",
+      "webgl"
+    ],
+    "updated_at": "2026-09-28T17:05:42Z"
+  },
+  {
     "repo": "NSTL_test",
     "title": "NSTL Test",
     "subtitle": "Python",
@@ -42,30 +66,6 @@
     "language": "JavaScript",
     "topics": [],
     "updated_at": "2026-09-12T00:40:39Z"
-  },
-  {
-    "repo": "Portfolio",
-    "title": "Portfolio",
-    "subtitle": "JavaScript | 4 ★",
-    "description": "Open-source JavaScript project by Matthew Nader.",
-    "github": "https://github.com/MatthewNader2/Portfolio",
-    "stars": 4,
-    "language": "JavaScript",
-    "topics": [
-      "c-compiler",
-      "css3d",
-      "portfolio",
-      "portfolio-project",
-      "portfolio-site",
-      "portfolio-template",
-      "portfolio-website",
-      "retro-ui",
-      "threejs",
-      "wasm",
-      "webassembly",
-      "webgl"
-    ],
-    "updated_at": "2026-09-03T10:35:29Z"
   },
   {
     "repo": "sudoku-rs",
