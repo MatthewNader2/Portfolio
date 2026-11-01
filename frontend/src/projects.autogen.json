@@ -1,14 +1,14 @@
 [
   {
-    "repo": "NSTL_test",
-    "title": "NSTL Test",
+    "repo": "STRATA",
+    "title": "STRATA",
     "subtitle": "Python",
     "description": "Open-source Python project by Matthew Nader.",
-    "github": "https://github.com/MatthewNader2/NSTL_test",
+    "github": "https://github.com/MatthewNader2/STRATA",
     "stars": 0,
     "language": "Python",
     "topics": [],
-    "updated_at": "2026-10-31T02:46:46Z"
+    "updated_at": "2026-10-31T23:28:16Z"
   },
   {
     "repo": "Portfolio",
@@ -32,7 +32,7 @@
       "webassembly",
       "webgl"
     ],
-    "updated_at": "2026-10-30T04:08:49Z"
+    "updated_at": "2026-10-31T03:51:34Z"
   },
   {
     "repo": "zc-ocw",
