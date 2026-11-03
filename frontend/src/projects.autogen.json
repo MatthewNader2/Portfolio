@@ -1,23 +1,5 @@
 [
   {
-    "repo": "STRATA",
-    "title": "STRATA",
-    "subtitle": "Python",
-    "description": "Symbolic Topological Routing Architecture for Typed Automata: category-theoretic neuro-symbolic program synthesis engine",
-    "github": "https://github.com/MatthewNader2/STRATA",
-    "stars": 0,
-    "language": "Python",
-    "topics": [
-      "category-theory",
-      "code-generation",
-      "formal-verification",
-      "neuro-symbolic",
-      "program-synthesis",
-      "python"
-    ],
-    "updated_at": "2026-11-02T02:10:51Z"
-  },
-  {
     "repo": "Portfolio",
     "title": "Portfolio",
     "subtitle": "JavaScript | 4 ★",
@@ -39,7 +21,25 @@
       "webassembly",
       "webgl"
     ],
-    "updated_at": "2026-11-01T04:01:41Z"
+    "updated_at": "2026-11-02T04:06:18Z"
+  },
+  {
+    "repo": "STRATA",
+    "title": "STRATA",
+    "subtitle": "Python",
+    "description": "Symbolic Topological Routing Architecture for Typed Automata: category-theoretic neuro-symbolic program synthesis engine",
+    "github": "https://github.com/MatthewNader2/STRATA",
+    "stars": 0,
+    "language": "Python",
+    "topics": [
+      "category-theory",
+      "code-generation",
+      "formal-verification",
+      "neuro-symbolic",
+      "program-synthesis",
+      "python"
+    ],
+    "updated_at": "2026-11-02T02:10:51Z"
   },
   {
     "repo": "zc-ocw",
