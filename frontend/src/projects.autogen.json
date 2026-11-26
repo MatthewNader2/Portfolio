@@ -1,5 +1,16 @@
 [
   {
+    "repo": "curl",
+    "title": "Curl",
+    "subtitle": "Software",
+    "description": "A command line tool and library for transferring data with URL syntax, supporting DICT, FILE, FTP, FTPS, GOPHER, GOPHERS, HTTP, HTTPS, IMAP, IMAPS, LDAP, LDAPS, MQTT, MQTTS, POP3, POP3S, RTSP, SCP, SFTP, SMTP, SMTPS, TELNET, TFTP, WS and WSS. libcurl offers a myriad of powerful features",
+    "github": "https://github.com/MatthewNader2/curl",
+    "stars": 0,
+    "language": null,
+    "topics": [],
+    "updated_at": "2026-11-25T23:48:20Z"
+  },
+  {
     "repo": "Matt_Writer",
     "title": "Matt Writer",
     "subtitle": "Python",
