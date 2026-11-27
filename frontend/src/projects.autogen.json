@@ -1,5 +1,68 @@
 [
   {
+    "repo": "STRATA",
+    "title": "STRATA",
+    "subtitle": "Python | 1 ★",
+    "description": "Symbolic Topological Routing Architecture for Typed Automata: category-theoretic neuro-symbolic program synthesis engine",
+    "github": "https://github.com/MatthewNader2/STRATA",
+    "stars": 1,
+    "language": "Python",
+    "topics": [
+      "category-theory",
+      "code-generation",
+      "formal-verification",
+      "neuro-symbolic",
+      "program-synthesis",
+      "python"
+    ],
+    "updated_at": "2026-11-26T21:47:34Z"
+  },
+  {
+    "repo": "Portfolio",
+    "title": "Portfolio",
+    "subtitle": "JavaScript | 5 ★",
+    "description": "Open-source JavaScript project by Matthew Nader.",
+    "github": "https://github.com/MatthewNader2/Portfolio",
+    "stars": 5,
+    "language": "JavaScript",
+    "topics": [
+      "c-compiler",
+      "css3d",
+      "portfolio",
+      "portfolio-project",
+      "portfolio-site",
+      "portfolio-template",
+      "portfolio-website",
+      "retro-ui",
+      "threejs",
+      "wasm",
+      "webassembly",
+      "webgl"
+    ],
+    "updated_at": "2026-11-26T21:47:21Z"
+  },
+  {
+    "repo": "SlowRoads_SelfDriving_Agent",
+    "title": "SlowRoads SelfDriving Agent",
+    "subtitle": "Python | 6 ★",
+    "description": "An autonomous self-driving agent for slowroads.io using OpenCV, DBSCAN, RANSAC, and a PID controller",
+    "github": "https://github.com/MatthewNader2/SlowRoads_SelfDriving_Agent",
+    "stars": 6,
+    "language": "Python",
+    "topics": [
+      "autonomous-agent",
+      "computer-vision",
+      "dbscan",
+      "flask",
+      "opencv",
+      "pid-controller",
+      "python",
+      "ransac",
+      "self-driving-car"
+    ],
+    "updated_at": "2026-11-26T21:47:05Z"
+  },
+  {
     "repo": "curl",
     "title": "Curl",
     "subtitle": "Software",
@@ -20,48 +83,6 @@
     "language": "Python",
     "topics": [],
     "updated_at": "2026-11-16T10:20:18Z"
-  },
-  {
-    "repo": "Portfolio",
-    "title": "Portfolio",
-    "subtitle": "JavaScript | 4 ★",
-    "description": "Open-source JavaScript project by Matthew Nader.",
-    "github": "https://github.com/MatthewNader2/Portfolio",
-    "stars": 4,
-    "language": "JavaScript",
-    "topics": [
-      "c-compiler",
-      "css3d",
-      "portfolio",
-      "portfolio-project",
-      "portfolio-site",
-      "portfolio-template",
-      "portfolio-website",
-      "retro-ui",
-      "threejs",
-      "wasm",
-      "webassembly",
-      "webgl"
-    ],
-    "updated_at": "2026-11-12T06:33:24Z"
-  },
-  {
-    "repo": "STRATA",
-    "title": "STRATA",
-    "subtitle": "Python",
-    "description": "Symbolic Topological Routing Architecture for Typed Automata: category-theoretic neuro-symbolic program synthesis engine",
-    "github": "https://github.com/MatthewNader2/STRATA",
-    "stars": 0,
-    "language": "Python",
-    "topics": [
-      "category-theory",
-      "code-generation",
-      "formal-verification",
-      "neuro-symbolic",
-      "program-synthesis",
-      "python"
-    ],
-    "updated_at": "2026-11-02T02:10:51Z"
   },
   {
     "repo": "zc-ocw",
@@ -106,27 +127,6 @@
     "language": "Rust",
     "topics": [],
     "updated_at": "2026-08-28T13:20:45Z"
-  },
-  {
-    "repo": "SlowRoads_SelfDriving_Agent",
-    "title": "SlowRoads SelfDriving Agent",
-    "subtitle": "Python | 5 ★",
-    "description": "An autonomous self-driving agent for slowroads.io using OpenCV, DBSCAN, RANSAC, and a PID controller",
-    "github": "https://github.com/MatthewNader2/SlowRoads_SelfDriving_Agent",
-    "stars": 5,
-    "language": "Python",
-    "topics": [
-      "autonomous-agent",
-      "computer-vision",
-      "dbscan",
-      "flask",
-      "opencv",
-      "pid-controller",
-      "python",
-      "ransac",
-      "self-driving-car"
-    ],
-    "updated_at": "2026-05-05T14:41:07Z"
   },
   {
     "repo": "ES_Course_Labs",
