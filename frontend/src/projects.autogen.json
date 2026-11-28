@@ -1,5 +1,16 @@
 [
   {
+    "repo": "llama.cpp",
+    "title": "Llama.Cpp",
+    "subtitle": "Software",
+    "description": "LLM inference in C/C++",
+    "github": "https://github.com/MatthewNader2/llama.cpp",
+    "stars": 0,
+    "language": null,
+    "topics": [],
+    "updated_at": "2026-11-28T03:03:26Z"
+  },
+  {
     "repo": "STRATA",
     "title": "STRATA",
     "subtitle": "Python | 1 ★",
